@@ -8,17 +8,16 @@ import { getPuppeteerLaunchOptions } from './browser-utils.js';
 // Type definition for epub-gen-memory
 type EPubContent = {
   title: string;
-  data: string;
+  content: string;
 };
 
 type EPubOptions = {
   title: string;
   author: string;
-  content: EPubContent[];
   verbose?: boolean;
 };
 
-type EPubGenerator = (options: EPubOptions) => Promise<Buffer>;
+type EPubGenerator = (options: EPubOptions, content: EPubContent[]) => Promise<Buffer>;
 
 export interface Article {
   title: string;
@@ -413,17 +412,17 @@ export async function buildEPUB(
 
     const epubContent = articles.map((article) => ({
       title: article.title,
-      data: article.contentHTML
+      content: article.contentHTML
     }));
 
-    const options: EPubOptions = {
-      title: blogTitle,
-      author: 'Auto-generated',
-      content: epubContent,
-      verbose: false
-    };
-
-    const epubBuffer = await (EPub as unknown as EPubGenerator)(options);
+    const epubBuffer = await (EPub as unknown as EPubGenerator)(
+      {
+        title: blogTitle,
+        author: 'Auto-generated',
+        verbose: false
+      },
+      epubContent
+    );
 
     await fs.promises.writeFile(outputPath, epubBuffer);
 
