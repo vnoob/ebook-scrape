@@ -45,14 +45,69 @@ async function autoScrollPage(page: Page): Promise<void> {
 }
 
 /**
- * Convert relative URLs to absolute URLs in HTML content
+ * Clean up excessive whitespace in HTML content
+ * @param html - HTML content
+ * @returns Cleaned HTML
+ */
+function cleanHTMLWhitespace(html: string): string {
+  return html
+    .replace(/\n\s*\n\s*\n/g, '\n\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
+/**
+ * Remove unwanted elements from HTML
+ * @param document - JSDOM document
+ */
+function removeUnwantedElements(document: Document): void {
+  const selectorsToRemove = [
+    'script',
+    'style',
+    'iframe',
+    'noscript',
+    '.ad',
+    '.advertisement',
+    '.social-share',
+    '.comments',
+    '.related-posts',
+    '.newsletter-signup',
+    '[class*="share"]',
+    '[class*="social"]',
+    '[id*="comments"]',
+    'nav',
+    'footer:not(.chapter footer)',
+    'header:not(.chapter header)',
+    '.sidebar',
+    'aside'
+  ];
+
+  selectorsToRemove.forEach(selector => {
+    const elements = document.querySelectorAll(selector);
+    elements.forEach(el => el.remove());
+  });
+
+  const emptyElements = document.querySelectorAll('p:empty, div:empty, span:empty');
+  emptyElements.forEach(el => {
+    if (!el.querySelector('img, br, hr')) {
+      el.remove();
+    }
+  });
+}
+
+/**
+ * Convert relative URLs to absolute URLs and clean HTML content
  * @param html - HTML content
  * @param baseUrl - Base URL for resolving relative paths
- * @returns HTML with absolute URLs
+ * @returns Cleaned HTML with absolute URLs
  */
 function convertRelativeUrlsToAbsolute(html: string, baseUrl: string): string {
   const dom = new JSDOM(html);
   const document = dom.window.document;
+
+  removeUnwantedElements(document);
 
   const images = document.querySelectorAll('img[src]');
   images.forEach((img) => {
@@ -61,6 +116,8 @@ function convertRelativeUrlsToAbsolute(html: string, baseUrl: string): string {
       try {
         const absoluteUrl = new URL(src, baseUrl).href;
         img.setAttribute('src', absoluteUrl);
+        img.removeAttribute('srcset');
+        img.removeAttribute('loading');
       } catch (error) {
         console.warn(`Failed to convert image URL: ${src}`);
       }
@@ -80,7 +137,10 @@ function convertRelativeUrlsToAbsolute(html: string, baseUrl: string): string {
     }
   });
 
-  return document.body.innerHTML;
+  let cleanedHTML = document.body.innerHTML;
+  cleanedHTML = cleanHTMLWhitespace(cleanedHTML);
+
+  return cleanedHTML;
 }
 
 /**

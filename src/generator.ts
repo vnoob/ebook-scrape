@@ -29,193 +29,203 @@ export interface Article {
  * @returns CSS string
  */
 function generatePDFStyles(): string {
-  return `
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-      
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        font-size: 12pt;
-        line-height: 1.6;
-        color: #333;
-        max-width: 100%;
-      }
-      
-      /* Table of Contents Styles */
-      .toc {
-        page-break-after: always;
-        padding: 2rem;
-      }
-      
-      .toc h1 {
-        font-size: 2.5rem;
-        margin-bottom: 2rem;
-        color: #1a1a1a;
-        border-bottom: 3px solid #333;
-        padding-bottom: 0.5rem;
-      }
-      
-      .toc-list {
-        list-style: none;
-        padding: 0;
-      }
-      
-      .toc-item {
-        margin: 1rem 0;
-        padding: 0.75rem;
-        border-left: 3px solid #007bff;
-        background: #f8f9fa;
-      }
-      
-      .toc-item a {
-        text-decoration: none;
-        color: #007bff;
-        font-size: 1.1rem;
-        font-weight: 500;
-        display: block;
-      }
-      
-      .toc-item a:hover {
-        color: #0056b3;
-      }
-      
-      .toc-item-number {
-        display: inline-block;
-        min-width: 2rem;
-        font-weight: bold;
-        color: #666;
-      }
-      
-      /* Chapter Styles */
-      .chapter {
-        page-break-before: always;
-        padding: 2rem;
-      }
-      
-      .chapter:first-of-type {
-        page-break-before: auto;
-      }
-      
-      .chapter h1, .chapter h2 {
-        color: #1a1a1a;
-        margin-top: 1.5rem;
-        margin-bottom: 1rem;
-      }
-      
-      .chapter h1 {
-        font-size: 2rem;
-        border-bottom: 2px solid #333;
-        padding-bottom: 0.5rem;
-      }
-      
-      .chapter h2 {
-        font-size: 1.5rem;
-      }
-      
-      .chapter h3 {
-        font-size: 1.25rem;
-        margin-top: 1rem;
-        margin-bottom: 0.75rem;
-      }
-      
-      .chapter p {
-        margin: 1rem 0;
-        text-align: justify;
-      }
-      
-      .chapter img {
-        max-width: 100%;
-        height: auto;
-        margin: 1.5rem 0;
-        display: block;
-      }
-      
-      .chapter pre {
-        background: #f5f5f5;
-        padding: 1rem;
-        border-radius: 4px;
-        overflow-x: auto;
-        margin: 1rem 0;
-        border-left: 3px solid #007bff;
-      }
-      
-      .chapter code {
-        background: #f5f5f5;
-        padding: 0.2rem 0.4rem;
-        border-radius: 3px;
-        font-family: "Courier New", monospace;
-        font-size: 0.9em;
-      }
-      
-      .chapter pre code {
-        background: none;
-        padding: 0;
-      }
-      
-      .chapter blockquote {
-        border-left: 4px solid #ddd;
-        padding-left: 1rem;
-        margin: 1rem 0;
-        color: #666;
-        font-style: italic;
-      }
-      
-      .chapter ul, .chapter ol {
-        margin: 1rem 0;
-        padding-left: 2rem;
-      }
-      
-      .chapter li {
-        margin: 0.5rem 0;
-      }
-      
-      .chapter a {
-        color: #007bff;
-        text-decoration: underline;
-      }
-      
-      .chapter table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 1rem 0;
-      }
-      
-      .chapter table th,
-      .chapter table td {
-        border: 1px solid #ddd;
-        padding: 0.5rem;
-        text-align: left;
-      }
-      
-      .chapter table th {
-        background: #f5f5f5;
-        font-weight: bold;
-      }
-      
-      /* Print-specific styles */
-      @media print {
-        body {
-          font-size: 11pt;
-        }
-        
-        .chapter {
-          page-break-inside: avoid;
-        }
-        
-        .chapter h1, .chapter h2, .chapter h3 {
-          page-break-after: avoid;
-        }
-        
-        .chapter img {
-          page-break-inside: avoid;
-        }
-      }
-    </style>
-  `;
+  return `<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 12pt;
+  line-height: 1.6;
+  color: #333;
+  max-width: 100%;
+}
+
+.toc {
+  page-break-after: always;
+  padding: 2rem;
+}
+
+.toc h1 {
+  font-size: 2.5rem;
+  margin-bottom: 2rem;
+  color: #1a1a1a;
+  border-bottom: 3px solid #333;
+  padding-bottom: 0.5rem;
+}
+
+.toc-list {
+  list-style: none;
+  padding: 0;
+}
+
+.toc-item {
+  margin: 1rem 0;
+  padding: 0.75rem;
+  border-left: 3px solid #007bff;
+  background: #f8f9fa;
+}
+
+.toc-item a {
+  text-decoration: none;
+  color: #007bff;
+  font-size: 1.1rem;
+  font-weight: 500;
+  display: block;
+}
+
+.toc-item a:hover {
+  color: #0056b3;
+}
+
+.toc-item-number {
+  display: inline-block;
+  min-width: 2rem;
+  font-weight: bold;
+  color: #666;
+}
+
+.chapter {
+  page-break-before: always;
+  padding: 2rem;
+}
+
+.chapter:first-of-type {
+  page-break-before: auto;
+}
+
+.chapter h1, .chapter h2 {
+  color: #1a1a1a;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.chapter h1 {
+  font-size: 2rem;
+  border-bottom: 2px solid #333;
+  padding-bottom: 0.5rem;
+}
+
+.chapter h2 {
+  font-size: 1.5rem;
+}
+
+.chapter h3 {
+  font-size: 1.25rem;
+  margin-top: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.chapter p {
+  margin: 0.75rem 0;
+  text-align: justify;
+  line-height: 1.7;
+}
+
+.chapter p:empty {
+  display: none;
+}
+
+.chapter img {
+  max-width: 100%;
+  height: auto;
+  margin: 1.5rem auto;
+  display: block;
+}
+
+.chapter pre {
+  background: #f5f5f5;
+  padding: 1rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin: 1rem 0;
+  border-left: 3px solid #007bff;
+}
+
+.chapter code {
+  background: #f5f5f5;
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-family: "Courier New", monospace;
+  font-size: 0.9em;
+}
+
+.chapter pre code {
+  background: none;
+  padding: 0;
+}
+
+.chapter blockquote {
+  border-left: 4px solid #ddd;
+  padding-left: 1rem;
+  margin: 1rem 0;
+  color: #666;
+  font-style: italic;
+}
+
+.chapter ul, .chapter ol {
+  margin: 0.75rem 0;
+  padding-left: 2rem;
+}
+
+.chapter li {
+  margin: 0.3rem 0;
+  line-height: 1.6;
+}
+
+.chapter a {
+  color: #007bff;
+  text-decoration: underline;
+}
+
+.chapter table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.chapter table th,
+.chapter table td {
+  border: 1px solid #ddd;
+  padding: 0.5rem;
+  text-align: left;
+}
+
+.chapter table th {
+  background: #f5f5f5;
+  font-weight: bold;
+}
+
+.chapter br + br {
+  display: none;
+}
+
+.chapter div:empty,
+.chapter span:empty {
+  display: none;
+}
+
+@media print {
+  body {
+    font-size: 11pt;
+  }
+  
+  .chapter {
+    page-break-inside: avoid;
+  }
+  
+  .chapter h1, .chapter h2, .chapter h3 {
+    page-break-after: avoid;
+  }
+  
+  .chapter img {
+    page-break-inside: avoid;
+  }
+}
+</style>`;
 }
 
 /**
@@ -227,25 +237,11 @@ function generateTableOfContents(articles: Article[]): string {
   const tocItems = articles
     .map((article, index) => {
       const chapterId = `chapter-${index}`;
-      return `
-        <li class="toc-item">
-          <a href="#${chapterId}">
-            <span class="toc-item-number">${index + 1}.</span>
-            ${escapeHtml(article.title)}
-          </a>
-        </li>
-      `;
+      return `<li class="toc-item"><a href="#${chapterId}"><span class="toc-item-number">${index + 1}.</span> ${escapeHtml(article.title)}</a></li>`;
     })
-    .join('');
+    .join('\n');
 
-  return `
-    <div class="toc">
-      <h1>Table of Contents</h1>
-      <ul class="toc-list">
-        ${tocItems}
-      </ul>
-    </div>
-  `;
+  return `<div class="toc"><h1>Table of Contents</h1><ul class="toc-list">\n${tocItems}\n</ul></div>`;
 }
 
 /**
@@ -273,14 +269,9 @@ function generateChapters(articles: Article[]): string {
   return articles
     .map((article, index) => {
       const chapterId = `chapter-${index}`;
-      return `
-        <div class="chapter" id="${chapterId}">
-          <h1>${escapeHtml(article.title)}</h1>
-          ${article.contentHTML}
-        </div>
-      `;
+      return `<div class="chapter" id="${chapterId}"><h1>${escapeHtml(article.title)}</h1>\n${article.contentHTML}\n</div>`;
     })
-    .join('');
+    .join('\n');
 }
 
 /**
@@ -293,21 +284,19 @@ function buildMasterHTML(articles: Article[]): string {
   const toc = generateTableOfContents(articles);
   const chapters = generateChapters(articles);
 
-  return `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>eBook Collection</title>
-      ${styles}
-    </head>
-    <body>
-      ${toc}
-      ${chapters}
-    </body>
-    </html>
-  `;
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>eBook Collection</title>
+${styles}
+</head>
+<body>
+${toc}
+${chapters}
+</body>
+</html>`;
 }
 
 /**
@@ -379,6 +368,23 @@ export async function buildPDF(articles: Article[], outputPath: string): Promise
 }
 
 /**
+ * Clean article content HTML for better formatting
+ * @param html - Raw HTML content
+ * @returns Cleaned HTML
+ */
+function cleanArticleContent(html: string): string {
+  return html
+    .replace(/\n\s*\n\s*\n/g, '\n\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/<br\s*\/?>\s*<br\s*\/?>/gi, '<br>')
+    .replace(/<p>\s*<\/p>/gi, '')
+    .replace(/<div>\s*<\/div>/gi, '')
+    .trim();
+}
+
+/**
  * Build an EPUB file from articles
  * @param articles - Array of articles with title and contentHTML
  * @param outputPath - Path where the EPUB should be saved
@@ -412,7 +418,7 @@ export async function buildEPUB(
 
     const epubContent = articles.map((article) => ({
       title: article.title,
-      content: article.contentHTML
+      content: cleanArticleContent(article.contentHTML)
     }));
 
     const epubBuffer = await (EPub as unknown as EPubGenerator)(
