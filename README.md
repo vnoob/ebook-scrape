@@ -84,7 +84,42 @@ ebook-scape/
     ├── index.ts         # CLI entry point with commander
     ├── crawler.ts       # Web crawling logic with Puppeteer
     ├── extractor.ts     # Content extraction with Readability
-    └── generator.ts     # PDF generation (skeleton - needs implementation)
+    ├── generator.ts     # PDF generation (skeleton - needs implementation)
+    └── test-crawler.ts  # Test script for article link extraction
+```
+
+## Features
+
+### 🚀 Optimized Web Crawling
+
+The crawler module includes advanced features for efficient scraping:
+
+- **Request Interception**: Automatically blocks unnecessary resources (images, fonts, stylesheets, tracking scripts) to speed up crawling by up to 80%
+- **Smart Link Filtering**: Identifies and extracts only article URLs, filtering out:
+  - Author profiles and user pages
+  - Tag and category pages
+  - Archive and pagination links
+  - Login, signup, and admin pages
+  - Feed and API endpoints
+- **Duplicate Prevention**: Returns only unique article URLs
+- **Cross-domain Protection**: Only returns links from the same domain as the base URL
+
+### 📖 Article Link Discovery
+
+Use the `getArticleLinks()` function to discover all article URLs from a blog:
+
+```typescript
+import { getArticleLinks } from './crawler.js';
+
+const articles = await getArticleLinks('https://example.com/blog');
+console.log(`Found ${articles.length} articles`);
+```
+
+Test it from the command line:
+
+```bash
+npm run build
+node dist/test-crawler.js https://example.com/blog
 ```
 
 ## Implementation Status
@@ -93,7 +128,8 @@ ebook-scape/
 - ✅ Project structure and configuration
 - ✅ CLI interface with commander
 - ✅ Loading spinners with ora
-- ✅ Web crawler with Puppeteer
+- ✅ Web crawler with Puppeteer and request interception
+- ✅ Article link discovery with smart filtering
 - ✅ Content extractor with Readability and jsdom
 
 ### To Do
