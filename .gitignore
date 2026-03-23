@@ -34,3 +34,7 @@ coverage/
 # Temporary files
 *.tmp
 .cache/
+
+# Generated output files
+*.pdf
+*.epub
