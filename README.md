@@ -76,17 +76,20 @@ npm start -- --url https://example.com/blog-post --out output.pdf
 
 ```
 ebook-scape/
-├── package.json          # Project configuration and dependencies
-├── tsconfig.json         # TypeScript configuration
-├── .gitignore           # Git ignore rules
-├── README.md            # This file
+├── package.json               # Project configuration and dependencies
+├── tsconfig.json              # TypeScript configuration
+├── .gitignore                # Git ignore rules
+├── README.md                 # This file
 └── src/
-    ├── index.ts         # CLI entry point with commander
-    ├── crawler.ts       # Web crawling logic with Puppeteer
-    ├── extractor.ts     # Content extraction with Readability
-    ├── generator.ts     # PDF generation (skeleton - needs implementation)
-    ├── test-crawler.ts  # Test script for article link extraction
-    └── test-extractor.ts # Test script for content extraction
+    ├── index.ts              # CLI entry point with commander
+    ├── crawler.ts            # Web crawling logic with Puppeteer
+    ├── extractor.ts          # Content extraction with Readability
+    ├── generator.ts          # PDF generation with Puppeteer
+    ├── test-crawler.ts       # Test script for article link extraction
+    ├── test-extractor.ts     # Test script for content extraction
+    ├── test-generator.ts     # Test script for PDF generation
+    ├── test-full-workflow.ts # Test script for complete workflow
+    └── test-complete-workflow.ts # Integration test with all features
 ```
 
 ## Features
@@ -153,6 +156,50 @@ npm run build
 node dist/test-extractor.js https://example.com/article1 https://example.com/article2
 ```
 
+### 📄 PDF Generation
+
+Use the `buildPDF()` function to generate a professional PDF eBook with Table of Contents:
+
+```typescript
+import { buildPDF } from './generator.js';
+
+const articles = [
+  { title: 'Article 1', contentHTML: '<p>Content...</p>' },
+  { title: 'Article 2', contentHTML: '<p>More content...</p>' }
+];
+
+await buildPDF(articles, 'output/my-ebook.pdf');
+```
+
+Features:
+- **Table of Contents**: Automatically generated with clickable links to each chapter
+- **Page Breaks**: Each article starts on a fresh page
+- **Professional Styling**: Clean, readable formatting with proper typography
+- **A4 Format**: Standard paper size with appropriate margins
+- **Page Numbers**: Footer with current page and total pages
+- **Internal Links**: TOC links work correctly in the PDF
+
+Test it from the command line:
+
+```bash
+npm run build
+node dist/test-generator.js output/test-ebook.pdf
+```
+
+### 🔄 Complete Workflow
+
+Run the entire workflow from discovery to PDF generation:
+
+```bash
+npm run build
+node dist/test-complete-workflow.js https://example.com/blog output/my-ebook.pdf 5
+```
+
+This will:
+1. Discover all article URLs from the blog
+2. Extract content from the first 5 articles
+3. Generate a PDF with Table of Contents
+
 ## Implementation Status
 
 ### Completed
@@ -164,19 +211,9 @@ node dist/test-extractor.js https://example.com/article1 https://example.com/art
 - ✅ Content extractor with Readability and jsdom
 - ✅ Batch content extraction with lazy-loading support
 - ✅ Relative to absolute URL conversion
-
-### To Do
-- ⚠️ **PDF generation implementation**: The `src/generator.ts` file currently contains a skeleton. You need to implement the actual PDF generation logic using one of these libraries:
-  - Puppeteer's `page.pdf()` method
-  - pdfkit
-  - html-pdf-node
-
-## Next Steps
-
-1. Install Node.js (if not already installed)
-2. Run `npm install` to install all dependencies
-3. Implement the PDF generation logic in `src/generator.ts`
-4. Build and test the application
+- ✅ PDF generation with Table of Contents
+- ✅ Professional PDF styling and formatting
+- ✅ Complete end-to-end workflow
 
 ## License
 
