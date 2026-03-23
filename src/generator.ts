@@ -2,6 +2,22 @@ import { ExtractedContent } from './extractor.js';
 import puppeteer, { Browser, PDFOptions } from 'puppeteer';
 import * as fs from 'fs';
 import * as path from 'path';
+import EPub from 'epub-gen-memory';
+
+// Type definition for epub-gen-memory
+type EPubContent = {
+  title: string;
+  data: string;
+};
+
+type EPubOptions = {
+  title: string;
+  author: string;
+  content: EPubContent[];
+  verbose?: boolean;
+};
+
+type EPubGenerator = (options: EPubOptions) => Promise<Buffer>;
 
 export interface Article {
   title: string;
@@ -366,6 +382,60 @@ export async function buildPDF(articles: Article[], outputPath: string): Promise
     if (browser) {
       await browser.close();
     }
+  }
+}
+
+/**
+ * Build an EPUB file from articles
+ * @param articles - Array of articles with title and contentHTML
+ * @param outputPath - Path where the EPUB should be saved
+ * @param blogTitle - Title of the eBook
+ * @returns Promise that resolves when EPUB is created
+ */
+export async function buildEPUB(
+  articles: Article[],
+  outputPath: string,
+  blogTitle: string
+): Promise<void> {
+  try {
+    if (!articles || articles.length === 0) {
+      throw new Error('No articles provided for EPUB generation');
+    }
+
+    if (!outputPath) {
+      throw new Error('Output path is required');
+    }
+
+    if (!blogTitle) {
+      throw new Error('Blog title is required');
+    }
+
+    const outputDir = path.dirname(outputPath);
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+    }
+
+    console.log(`\n📚 Building EPUB with ${articles.length} article(s)...`);
+
+    const epubContent = articles.map((article) => ({
+      title: article.title,
+      data: article.contentHTML
+    }));
+
+    const options: EPubOptions = {
+      title: blogTitle,
+      author: 'Auto-generated',
+      content: epubContent,
+      verbose: false
+    };
+
+    const epubBuffer = await (EPub as unknown as EPubGenerator)(options);
+
+    await fs.promises.writeFile(outputPath, epubBuffer);
+
+    console.log(`✅ EPUB generated successfully: ${outputPath}`);
+  } catch (error) {
+    throw new Error(`Failed to build EPUB: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 

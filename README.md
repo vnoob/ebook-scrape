@@ -30,6 +30,7 @@ This will install all required dependencies:
 - **puppeteer**: Headless browser for web crawling
 - **@mozilla/readability**: Extract readable content from HTML
 - **jsdom**: DOM implementation for Node.js
+- **epub-gen-memory**: EPUB eBook generation library
 
 ## Development
 
@@ -84,12 +85,14 @@ ebook-scape/
     ├── index.ts              # CLI entry point with commander
     ├── crawler.ts            # Web crawling logic with Puppeteer
     ├── extractor.ts          # Content extraction with Readability
-    ├── generator.ts          # PDF generation with Puppeteer
+    ├── generator.ts          # PDF & EPUB generation
     ├── test-crawler.ts       # Test script for article link extraction
     ├── test-extractor.ts     # Test script for content extraction
     ├── test-generator.ts     # Test script for PDF generation
+    ├── test-epub-generator.ts # Test script for EPUB generation
     ├── test-full-workflow.ts # Test script for complete workflow
-    └── test-complete-workflow.ts # Integration test with all features
+    ├── test-complete-workflow.ts # Integration test (PDF only)
+    └── test-both-formats.ts  # Integration test (PDF & EPUB)
 ```
 
 ## Features
@@ -186,17 +189,55 @@ npm run build
 node dist/test-generator.js output/test-ebook.pdf
 ```
 
+### 📚 EPUB Generation
+
+Use the `buildEPUB()` function to generate an EPUB eBook compatible with e-readers:
+
+```typescript
+import { buildEPUB } from './generator.js';
+
+const articles = [
+  { title: 'Article 1', contentHTML: '<p>Content...</p>' },
+  { title: 'Article 2', contentHTML: '<p>More content...</p>' }
+];
+
+await buildEPUB(articles, 'output/my-ebook.epub', 'My Blog Collection');
+```
+
+Features:
+- **Standard EPUB Format**: Compatible with Kindle, Apple Books, Google Play Books, and all EPUB readers
+- **Automatic Chapters**: Each article becomes a separate chapter
+- **Table of Contents**: Built-in navigation in e-reader apps
+- **Metadata**: Customizable book title and author
+- **Reflowable Text**: Adapts to any screen size
+
+Test it from the command line:
+
+```bash
+npm run build
+node dist/test-epub-generator.js output/test-ebook.epub "My Sample Book"
+```
+
 ### 🔄 Complete Workflow
 
-Run the entire workflow from discovery to PDF generation:
+Run the entire workflow from discovery to eBook generation:
 
+**PDF only:**
 ```bash
 npm run build
 node dist/test-complete-workflow.js https://example.com/blog output/my-ebook.pdf 5
 ```
 
+**Both PDF and EPUB:**
+```bash
+npm run build
+node dist/test-both-formats.js https://example.com/blog output 5
+```
+
 This will:
 1. Discover all article URLs from the blog
+2. Extract content from the first 5 articles
+3. Generate both PDF and EPUB eBooks
 2. Extract content from the first 5 articles
 3. Generate a PDF with Table of Contents
 
@@ -213,7 +254,8 @@ This will:
 - ✅ Relative to absolute URL conversion
 - ✅ PDF generation with Table of Contents
 - ✅ Professional PDF styling and formatting
-- ✅ Complete end-to-end workflow
+- ✅ EPUB generation with chapter support
+- ✅ Complete end-to-end workflow (PDF & EPUB)
 
 ## License
 
