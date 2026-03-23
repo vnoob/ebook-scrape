@@ -1,7 +1,7 @@
 {
   "name": "ebook-scape",
   "version": "1.0.0",
-  "description": "Convert blog posts to PDF eBooks",
+  "description": "Convert blog posts to PDF or EPUB eBooks",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -9,12 +9,23 @@
   },
   "scripts": {
     "build": "tsc",
+    "build:exe": "npm run build && pkg package.json",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts"
+  },
+  "pkg": {
+    "scripts": "dist/**/*.js",
+    "targets": [
+      "node18-linux-x64",
+      "node18-win-x64",
+      "node18-macos-x64"
+    ],
+    "outputPath": "build"
   },
   "keywords": [
     "pdf",
     "ebook",
+    "epub",
     "blog",
     "scraper",
     "cli"
@@ -23,6 +34,7 @@
   "license": "ISC",
   "dependencies": {
     "@mozilla/readability": "^0.5.0",
+    "chrome-paths": "^1.0.1",
     "commander": "^12.0.0",
     "epub-gen-memory": "^1.1.2",
     "jsdom": "^24.0.0",
@@ -32,6 +44,7 @@
   "devDependencies": {
     "@types/jsdom": "^21.1.0",
     "@types/node": "^20.11.0",
+    "pkg": "^5.8.1",
     "ts-node": "^10.9.0",
     "typescript": "^5.4.0"
   }

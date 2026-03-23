@@ -1,6 +1,7 @@
 import { Readability } from '@mozilla/readability';
 import { JSDOM } from 'jsdom';
 import puppeteer, { Browser, Page } from 'puppeteer';
+import { getPuppeteerLaunchOptions } from './browser-utils.js';
 
 export interface ExtractedContent {
   title: string;
@@ -92,16 +93,7 @@ export async function extractContent(urls: string[]): Promise<ArticleContent[]> 
   const results: ArticleContent[] = [];
 
   try {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--disable-gpu'
-      ]
-    });
+    browser = await puppeteer.launch(getPuppeteerLaunchOptions());
 
     for (const url of urls) {
       try {

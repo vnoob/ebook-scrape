@@ -1,4 +1,5 @@
 import puppeteer, { Browser, Page } from 'puppeteer';
+import { getPuppeteerLaunchOptions } from './browser-utils.js';
 
 /**
  * Resource types to block for faster scraping
@@ -110,16 +111,7 @@ export async function getArticleLinks(baseUrl: string): Promise<string[]> {
   let browser: Browser | null = null;
   
   try {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--disable-gpu'
-      ]
-    });
+    browser = await puppeteer.launch(getPuppeteerLaunchOptions());
 
     const page: Page = await browser.newPage();
     
@@ -176,10 +168,7 @@ export async function crawl(url: string): Promise<string> {
   let browser: Browser | null = null;
   
   try {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
+    browser = await puppeteer.launch(getPuppeteerLaunchOptions());
 
     const page: Page = await browser.newPage();
     

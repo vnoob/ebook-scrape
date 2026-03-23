@@ -39,6 +39,7 @@ This will install all required dependencies:
 - **@mozilla/readability**: Extract readable content from HTML
 - **jsdom**: DOM implementation for Node.js
 - **epub-gen-memory**: EPUB eBook generation library
+- **chrome-paths**: Find local Chrome/Edge installations
 
 ## Development
 
@@ -48,6 +49,19 @@ Build the TypeScript code:
 npm run build
 ```
 
+Build standalone executables (Linux, Windows, macOS):
+
+```bash
+npm run build:exe
+```
+
+This creates platform-specific binaries in the `build/` directory:
+- `ebook-scape-linux` (Linux x64)
+- `ebook-scape-win.exe` (Windows x64)
+- `ebook-scape-macos` (macOS x64)
+
+**Note:** The standalone executables require Chrome, Edge, or Chromium installed on the target system.
+
 Run in development mode:
 
 ```bash
@@ -55,6 +69,8 @@ npm run dev -- --url <URL> --out <OUTPUT_PATH>
 ```
 
 ## Usage
+
+### Using Node.js
 
 After building the project, you can use the CLI tool to convert blog posts to eBooks:
 
@@ -66,6 +82,20 @@ Or if installed globally:
 
 ```bash
 ebook-scape --url <BLOG_URL> --out <OUTPUT_PATH> [OPTIONS]
+```
+
+### Using Standalone Executables
+
+After building with `npm run build:exe`, run the executable directly:
+
+**Linux/macOS:**
+```bash
+./build/ebook-scape-linux --url <BLOG_URL> --out <OUTPUT_PATH> [OPTIONS]
+```
+
+**Windows:**
+```cmd
+build\ebook-scape-win.exe --url <BLOG_URL> --out <OUTPUT_PATH> [OPTIONS]
 ```
 
 ### Options

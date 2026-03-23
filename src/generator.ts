@@ -3,6 +3,7 @@ import puppeteer, { Browser, PDFOptions } from 'puppeteer';
 import * as fs from 'fs';
 import * as path from 'path';
 import EPub from 'epub-gen-memory';
+import { getPuppeteerLaunchOptions } from './browser-utils.js';
 
 // Type definition for epub-gen-memory
 type EPubContent = {
@@ -337,14 +338,7 @@ export async function buildPDF(articles: Article[], outputPath: string): Promise
 
     const masterHTML = buildMasterHTML(articles);
 
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage'
-      ]
-    });
+    browser = await puppeteer.launch(getPuppeteerLaunchOptions());
 
     const page = await browser.newPage();
 
