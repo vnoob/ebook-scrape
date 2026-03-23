@@ -85,7 +85,8 @@ ebook-scape/
     ├── crawler.ts       # Web crawling logic with Puppeteer
     ├── extractor.ts     # Content extraction with Readability
     ├── generator.ts     # PDF generation (skeleton - needs implementation)
-    └── test-crawler.ts  # Test script for article link extraction
+    ├── test-crawler.ts  # Test script for article link extraction
+    └── test-extractor.ts # Test script for content extraction
 ```
 
 ## Features
@@ -122,6 +123,36 @@ npm run build
 node dist/test-crawler.js https://example.com/blog
 ```
 
+### 📝 Content Extraction
+
+Use the `extractContent()` function to extract clean article content from multiple URLs:
+
+```typescript
+import { extractContent } from './extractor.js';
+
+const urls = ['https://example.com/article1', 'https://example.com/article2'];
+const articles = await extractContent(urls);
+
+articles.forEach(article => {
+  console.log(`Title: ${article.title}`);
+  console.log(`Content: ${article.contentHTML}`);
+});
+```
+
+Features:
+- **Lazy-loaded Image Support**: Automatically scrolls the page to trigger lazy-loading
+- **Network Idle Wait**: Uses `networkidle0` to ensure all content is fully loaded
+- **Readability Parsing**: Strips out headers, footers, sidebars, and ads
+- **Absolute URL Conversion**: Converts all relative image and link URLs to absolute URLs
+- **Error Resilience**: Continues processing remaining URLs even if one fails
+
+Test it from the command line:
+
+```bash
+npm run build
+node dist/test-extractor.js https://example.com/article1 https://example.com/article2
+```
+
 ## Implementation Status
 
 ### Completed
@@ -131,6 +162,8 @@ node dist/test-crawler.js https://example.com/blog
 - ✅ Web crawler with Puppeteer and request interception
 - ✅ Article link discovery with smart filtering
 - ✅ Content extractor with Readability and jsdom
+- ✅ Batch content extraction with lazy-loading support
+- ✅ Relative to absolute URL conversion
 
 ### To Do
 - ⚠️ **PDF generation implementation**: The `src/generator.ts` file currently contains a skeleton. You need to implement the actual PDF generation logic using one of these libraries:
