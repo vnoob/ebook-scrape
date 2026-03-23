@@ -1,6 +1,14 @@
 # ebook-scape
 
-Convert blog posts to PDF eBooks using a simple CLI tool.
+Convert blog posts to PDF or EPUB eBooks using a powerful CLI tool.
+
+**Features:**
+- 🔍 Automatically discover article links from blog pages
+- 📖 Extract clean content using Mozilla Readability
+- 📄 Generate professional PDF eBooks with Table of Contents
+- 📚 Generate EPUB eBooks for e-readers and tablets
+- ⚡ Optimized web scraping with request interception
+- 🎨 Beautiful formatting and styling
 
 ## Prerequisites
 
@@ -48,30 +56,49 @@ npm run dev -- --url <URL> --out <OUTPUT_PATH>
 
 ## Usage
 
-After building the project, you can use the CLI tool:
+After building the project, you can use the CLI tool to convert blog posts to eBooks:
 
 ```bash
-npm start -- --url <URL> --out <OUTPUT_PATH>
+npm start -- --url <BLOG_URL> --out <OUTPUT_PATH> [OPTIONS]
 ```
 
 Or if installed globally:
 
 ```bash
-ebook-scape --url <URL> --out <OUTPUT_PATH>
+ebook-scape --url <BLOG_URL> --out <OUTPUT_PATH> [OPTIONS]
 ```
 
 ### Options
 
 - `-u, --url <url>`: Target blog URL to scrape (required)
-- `-o, --out <path>`: Output PDF file path (required)
+- `-o, --out <path>`: Output eBook file path (required)
+- `-f, --format <type>`: Output format: `pdf` or `epub` (default: `pdf`)
+- `-m, --max <number>`: Maximum number of articles to process (default: `10`)
 - `-h, --help`: Display help for command
 - `-V, --version`: Output version number
 
-### Example
+### Examples
 
+**Generate a PDF eBook:**
 ```bash
-npm start -- --url https://example.com/blog-post --out output.pdf
+npm start -- --url https://example.com/blog --out my-ebook.pdf
 ```
+
+**Generate an EPUB eBook:**
+```bash
+npm start -- --url https://example.com/blog --out my-ebook.epub --format epub
+```
+
+**Process more articles:**
+```bash
+npm start -- --url https://example.com/blog --out my-ebook.pdf --max 20
+```
+
+**The CLI will automatically:**
+- Discover all article links from the blog
+- Extract clean content from each article
+- Generate an eBook with Table of Contents
+- Use the correct file extension based on format
 
 ## Project Structure
 
