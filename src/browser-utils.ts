@@ -2,6 +2,16 @@ import chromePaths from 'chrome-paths';
 import * as fs from 'fs';
 import * as path from 'path';
 import { platform } from 'os';
+// @ts-ignore - puppeteer-extra has incomplete type definitions for ESM
+import puppeteerExtra from 'puppeteer-extra';
+// @ts-ignore - puppeteer-extra-plugin-stealth has incomplete type definitions
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+
+// @ts-ignore
+puppeteerExtra.use(StealthPlugin());
+
+// @ts-ignore
+export const puppeteer = puppeteerExtra;
 
 /**
  * Find the Chrome/Edge executable path on the system
@@ -78,6 +88,11 @@ export function findChromiumExecutable(): string | undefined {
 }
 
 /**
+ * Realistic User-Agent for modern Chrome on Windows
+ */
+export const REALISTIC_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
+/**
  * Get Puppeteer launch options with Chrome/Edge executable path
  * @returns Launch options object with executablePath if found
  */
@@ -91,7 +106,11 @@ export function getPuppeteerLaunchOptions() {
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
       '--disable-accelerated-2d-canvas',
-      '--disable-gpu'
+      '--disable-gpu',
+      '--disable-blink-features=AutomationControlled',
+      '--disable-features=IsolateOrigins,site-per-process',
+      '--window-size=1920,1080',
+      '--start-maximized'
     ]
   };
 
