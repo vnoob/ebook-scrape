@@ -6,6 +6,7 @@ import { getArticleLinks } from './crawler.js';
 import { extractContent } from './extractor.js';
 import { buildPDF, buildEPUB } from './generator.js';
 import * as path from 'path';
+import { AIProvider, getAILayout, getDefaultModel } from './ai-layout.js';
 
 const program = new Command();
 
@@ -17,6 +18,11 @@ program
   .requiredOption('-o, --out <path>', 'Output eBook file path')
   .option('-f, --format <type>', 'Output format: pdf or epub', 'pdf')
   .option('-m, --max <number>', 'Maximum number of articles to process', '10')
+  .option('-l, --layout-mode <mode>', 'Layout mode: static or ai', 'static')
+  .option('--ai-provider <provider>', 'AI provider: gemini, openai, or anthropic', 'gemini')
+  .option('--ai-model <model>', 'AI model name (provider-specific)')
+  .option('--ai-api-key <key>', 'API key for AI provider')
+  .option('--no-cache', 'Skip AI response cache')
   .parse(process.argv);
 
 const options = program.opts<{
@@ -24,7 +30,16 @@ const options = program.opts<{
   out: string;
   format: string;
   max: string;
+  layoutMode: string;
+  aiProvider: string;
+  aiModel?: string;
+  aiApiKey?: string;
+  cache: boolean;
 }>();
+
+function isValidProvider(value: string): value is AIProvider {
+  return value === 'gemini' || value === 'openai' || value === 'anthropic';
+}
 
 /**
  * Extract domain name from URL to use as book title
@@ -68,6 +83,18 @@ async function main() {
       process.exit(1);
     }
 
+    const layoutMode = options.layoutMode.toLowerCase();
+    if (layoutMode !== 'static' && layoutMode !== 'ai') {
+      console.error('Error: --layout-mode must be either "static" or "ai"');
+      process.exit(1);
+    }
+
+    const providerRaw = options.aiProvider.toLowerCase();
+    if (!isValidProvider(providerRaw)) {
+      console.error('Error: --ai-provider must be one of "gemini", "openai", "anthropic"');
+      process.exit(1);
+    }
+
     // Ensure correct file extension
     const outputPath = ensureCorrectExtension(options.out, format);
     const formatDisplay = format.toUpperCase();
@@ -107,11 +134,45 @@ async function main() {
     const generatorSpinner = ora(`Generating ${formatDisplay}...`).start();
     
     if (format === 'epub') {
+      if (layoutMode === 'ai') {
+        console.log('⚠️  AI layout mode is PDF-only in v1; EPUB will use static layout.');
+      }
       const blogTitle = getBlogTitle(options.url);
       await buildEPUB(articles, outputPath, blogTitle);
       generatorSpinner.succeed(`EPUB generated successfully: ${outputPath}`);
     } else {
-      await buildPDF(articles, outputPath);
+      let aiCSS: string | undefined;
+      if (layoutMode === 'ai') {
+        const apiKeyFromEnv = process.env[`EBOOK_SCAPE_${providerRaw.toUpperCase()}_API_KEY`];
+        const apiKey = options.aiApiKey || apiKeyFromEnv;
+        const selectedModel = options.aiModel || getDefaultModel(providerRaw);
+        if (!apiKey) {
+          console.warn('⚠️  No API key provided for AI layout, using static layout fallback.');
+        } else {
+          try {
+            aiCSS = await getAILayout(
+              articles,
+              {
+                provider: providerRaw,
+                model: selectedModel,
+                apiKey
+              },
+              !options.cache
+            ) ?? undefined;
+
+            if (aiCSS) {
+              console.log(`ℹ️  AI CSS generated using ${providerRaw}/${selectedModel}`);
+            } else {
+              console.warn('⚠️  AI layout unavailable or invalid response, using static layout fallback.');
+            }
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : 'Unknown error';
+            console.warn(`⚠️  AI layout failed (${msg}), using static layout fallback.`);
+          }
+        }
+      }
+
+      await buildPDF(articles, outputPath, aiCSS);
       generatorSpinner.succeed(`PDF generated successfully: ${outputPath}`);
     }
 

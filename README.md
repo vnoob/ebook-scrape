@@ -87,6 +87,11 @@ npm start -- --url https://example.com/blog --out my-ebook.pdf --max 20
 | `--out <path>` | `-o` | Output eBook file path | - | ✅ |
 | `--format <type>` | `-f` | Output format: `pdf` or `epub` | `pdf` | ❌ |
 | `--max <number>` | `-m` | Maximum articles to process | `10` | ❌ |
+| `--layout-mode <mode>` | `-l` | Layout mode: `static` or `ai` (PDF-only in v1) | `static` | ❌ |
+| `--ai-provider <provider>` | - | AI provider: `gemini`, `openai`, `anthropic` | `gemini` | ❌ |
+| `--ai-model <model>` | - | AI model override for provider | Provider default | ❌ |
+| `--ai-api-key <key>` | - | API key for selected AI provider | Env var | ❌ |
+| `--no-cache` | - | Skip cached AI CSS and force fresh generation | false | ❌ |
 | `--help` | `-h` | Display help information | - | ❌ |
 | `--version` | `-V` | Display version number | - | ❌ |
 
@@ -106,6 +111,23 @@ npm start -- --url https://blog.example.com --out book.epub --format epub
 ```bash
 npm start -- --url https://blog.example.com --out complete.pdf --max 100
 ```
+
+**AI-Assisted PDF Layout Selection (AI-generated CSS):**
+```bash
+npm start -- --url https://blog.example.com --out output.pdf --layout-mode ai
+```
+
+**Choose provider + model:**
+```bash
+npm start -- --url https://blog.example.com --out output.pdf --layout-mode ai --ai-provider openai --ai-model gpt-4o-mini
+```
+
+**Provide API key directly and skip cache:**
+```bash
+npm start -- --url https://blog.example.com --out output.pdf --layout-mode ai --ai-provider gemini --ai-api-key YOUR_KEY --no-cache
+```
+
+**Important:** AI mode in v1 only applies to PDF output and generates CSS only (HTML structure/content are unchanged). If AI fails or returns invalid CSS, ebook-scape automatically falls back to static layout.
 
 **Using with npx (no install):**
 ```bash
@@ -527,6 +549,18 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 6. Commit: `git commit -m "Add your feature"`
 7. Push: `git push origin feature/your-feature`
 8. Create a Pull Request
+
+### QA Agent Usage (Reusable)
+
+Use the built-in QA workflow to re-run requirement validation consistently:
+
+1. Follow workflow: `docs/qa/TEST_WORKFLOW_REUSABLE.md`
+2. Run with agent prompt:
+   - `Follow docs/qa/TEST_WORKFLOW_REUSABLE.md. Run T01-T09, generate a dated test report in docs/qa, and update docs/qa/PROJECT_CONTEXT.md for future reference.`
+3. Review outputs:
+   - Report: `docs/qa/TEST_REPORT_YYYY-MM-DD_<slug>.md`
+   - Context memory: `docs/qa/PROJECT_CONTEXT.md`
+   - Artifacts: `docs/qa/artifacts/`
 
 ### Coding Standards
 
