@@ -26,7 +26,7 @@
 ### Runtime & Language
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| Node.js | 18+ (22 for exe) | Runtime environment |
+| Node.js | 20+ (`engines` in package.json; 22 for pkg exe targets) | Runtime environment |
 | TypeScript | 5.4.x | Type-safe development |
 | ES Modules | ES2022 | Module system |
 
@@ -44,7 +44,7 @@
 | chalk | ^4.1.2 | Terminal colors |
 | chrome-paths | ^1.0.1 | Browser path detection |
 | p-limit | ^7.3.0 | Concurrency control |
-| fetch (Node built-in) | Node 18+ | AI provider REST calls (Gemini/OpenAI/Anthropic) without SDKs |
+| fetch (Node built-in) | Node 20+ | AI provider REST calls (Gemini/OpenAI/Anthropic) without SDKs |
 
 ### Dev Dependencies
 | Package | Version | Purpose |
@@ -116,7 +116,17 @@ User Input (URL)
 
 ## 4. Changelog
 
-### [2024-xx-xx] - Comprehensive Scraping Enhancements
+### [2026-04-09] - PR review: Node 20, crawler/extractor hardening
+- **Author**: AI-assisted
+- **Changes**: Enforced Node `>=20` in `package.json` and docs (aligns with `p-limit` 7); README badge and pkg example targets; safe iframe link DOM (http/https only, no `innerHTML` interpolation); removed invalid `:has-text` selector and added anchor-text “Next” fallback; single ora spinner during concurrent extraction; KNOWLEDGE footer and changelog placeholder cleanup
+- **Impact**: `package.json`, `README.md`, `src/extractor.ts`, `src/crawler.ts`, `KNOWLEDGE.md`
+
+### [2026-04-09] - GitHub Actions: build, package matrix, release assets
+- **Author**: Human
+- **Changes**: Workflow runs TypeScript build on push/PR to main; matrix packaging for Linux/Windows/macOS executables; publish to GitHub Packages only on `release`; upload-release-asset steps for binaries; Node.js 22 in CI
+- **Impact**: `.github/workflows/npm-publish-github-packages.yml`
+
+### [2026-03-24] - Comprehensive Scraping Enhancements
 - **Author**: AI-assisted
 - **Commit**: `bcbf693`
 - **Changes**: Added puppeteer-extra with stealth plugin for anti-bot bypass
@@ -127,7 +137,7 @@ User Input (URL)
 - **Changes**: Added `--layout-mode ai` flow with provider/model/API key options, metadata-only AI prompting, CSS validation, local cache, and graceful fallback to static styling
 - **Impact**: `src/index.ts`, `src/generator.ts`, `src/ai-layout.ts`
 
-### [2024-xx-xx] - GitHub Actions Workflow
+### [2026-03-23] - GitHub Actions Workflow
 - **Author**: Human
 - **Commit**: `2933f07`
 - **Changes**: Added npm package publishing workflow
@@ -211,5 +221,5 @@ User Input (URL)
 
 ---
 
-*Last Updated: 2024-xx-xx*
+*Last Updated: 2026-04-09*
 *Next Review: Before next commit*

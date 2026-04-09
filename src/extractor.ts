@@ -82,6 +82,27 @@ function preserveCodeBlockWhitespace(document: Document): void {
 }
 
 /**
+ * Resolve iframe src to an http(s) URL only; blocks javascript: and other schemes.
+ * @param src - Raw src attribute
+ * @returns Safe href or null
+ */
+function safeIframeHttpHref(src: string): string | null {
+  const trimmed = src.trim();
+  if (!trimmed || /^javascript:/i.test(trimmed) || /^vbscript:/i.test(trimmed)) {
+    return null;
+  }
+  try {
+    const resolved = new URL(trimmed, 'https://invalid.example/');
+    if (resolved.protocol !== 'http:' && resolved.protocol !== 'https:') {
+      return null;
+    }
+    return resolved.href;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Replace iframe elements with clickable fallback links
  * @param document - JSDOM document
  */
@@ -90,9 +111,22 @@ function replaceIframesWithLinks(document: Document): void {
   iframes.forEach((iframe) => {
     const src = iframe.getAttribute('src');
     if (src) {
+      const safeHref = safeIframeHttpHref(src);
+      if (!safeHref) {
+        iframe.remove();
+        return;
+      }
       const fallbackElement = document.createElement('p');
-      fallbackElement.innerHTML = `<strong>[Embedded Media]</strong> <a href="${src}" target="_blank" rel="noopener noreferrer">${src}</a>`;
-      
+      const strong = document.createElement('strong');
+      strong.textContent = '[Embedded Media]';
+      fallbackElement.appendChild(strong);
+      fallbackElement.appendChild(document.createTextNode(' '));
+      const link = document.createElement('a');
+      link.href = safeHref;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = safeHref;
+      fallbackElement.appendChild(link);
       iframe.parentNode?.replaceChild(fallbackElement, iframe);
     } else {
       iframe.remove();
@@ -197,14 +231,9 @@ function convertRelativeUrlsToAbsolute(html: string, baseUrl: string): string {
  * Extract content from a single URL
  * @param browser - Shared browser instance
  * @param url - URL to extract content from
- * @param spinner - Ora spinner for status updates
  * @returns Promise containing extracted article content or null if failed
  */
-async function extractSingleUrl(
-  browser: Browser,
-  url: string,
-  spinner: ora.Ora
-): Promise<ArticleContent | null> {
+async function extractSingleUrl(browser: Browser, url: string): Promise<ArticleContent | null> {
   let page: Page | null = null;
 
   try {
@@ -234,20 +263,20 @@ async function extractSingleUrl(
     const article = reader.parse();
 
     if (!article) {
-      spinner.warn(`Failed to parse article from: ${url}`);
+      console.warn(`Failed to parse article from: ${url}`);
       return null;
     }
 
     const contentWithAbsoluteUrls = convertRelativeUrlsToAbsolute(article.content, url);
-
-    spinner.succeed(`Extracted: ${article.title}`);
 
     return {
       title: article.title,
       contentHTML: contentWithAbsoluteUrls
     };
   } catch (error) {
-    spinner.fail(`Failed to extract content from ${url}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.warn(
+      `Failed to extract content from ${url}: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
     return null;
   } finally {
     if (page) {
@@ -281,7 +310,7 @@ export async function extractContent(
     const extractionPromises = urls.map((url, index) =>
       limit(async () => {
         spinner.text = `Processing ${index + 1}/${urls.length}: ${url}`;
-        return extractSingleUrl(browser!, url, ora());
+        return extractSingleUrl(browser!, url);
       })
     );
 

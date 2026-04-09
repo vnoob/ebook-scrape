@@ -5,7 +5,7 @@
 Transform any blog or website into professional eBooks with automatic content discovery, intelligent extraction, and beautiful formatting.
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue)](https://www.typescriptlang.org/)
-[![Node](https://img.shields.io/badge/Node-18+-green)](https://nodejs.org/)
+[![Node](https://img.shields.io/badge/Node-20+-green)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/License-ISC-yellow)](LICENSE)
 
 ## ✨ Features
@@ -42,7 +42,7 @@ Transform any blog or website into professional eBooks with automatic content di
 
 ### Prerequisites
 
-- **Node.js** 18 or higher ([Download](https://nodejs.org/))
+- **Node.js** 20 or higher ([Download](https://nodejs.org/)) — required by dependencies (e.g. `p-limit` 7.x)
 - **Chrome, Edge, or Chromium** browser installed (for standalone executables)
 
 ### Install Dependencies
@@ -450,9 +450,9 @@ Edit `package.json` to customize:
   "pkg": {
     "scripts": "dist/**/*.js",
     "targets": [
-      "node18-linux-x64",
-      "node18-win-x64",
-      "node18-macos-x64"
+      "node22-linux-x64",
+      "node22-win-x64",
+      "node22-macos-x64"
     ],
     "outputPath": "build"
   }
