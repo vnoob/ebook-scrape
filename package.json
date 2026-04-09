@@ -19,7 +19,12 @@
     "dev": "ts-node src/index.ts"
   },
   "pkg": {
-    "scripts": "dist/index.js",
+    "scripts": [
+      "dist/index.js",
+      "node_modules/puppeteer-extra-plugin-stealth/evasions/*/index.js",
+      "node_modules/puppeteer-extra-plugin-stealth/evasions/_utils/index.js",
+      "node_modules/puppeteer-extra-plugin-stealth/evasions/_utils/withUtils.js"
+    ],
     "targets": [
       "node22-linux-x64",
       "node22-win-x64",

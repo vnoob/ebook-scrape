@@ -116,6 +116,11 @@ User Input (URL)
 
 ## 4. Changelog
 
+### [2026-04-09] - Bundle stealth evasion modules for pkg executable
+- **Author**: AI-assisted
+- **Changes**: Added explicit `pkg.scripts` entries for `puppeteer-extra-plugin-stealth` evasion sub-modules and shared `_utils` so the dynamically-required evasions are included in the packaged executable snapshot.
+- **Impact**: `package.json`
+
 ### [2026-04-09] - Stabilize pkg packaging inputs and Puppeteer runtime
 - **Author**: AI-assisted
 - **Changes**: Switched dependency from `puppeteer` to `puppeteer-core`, cleaned `dist` before TypeScript builds to avoid stale outputs during packaging, narrowed `pkg` script entry to `dist/index.js`, and aligned browser module typing/imports to `puppeteer-core`.
