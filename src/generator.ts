@@ -1,5 +1,5 @@
 import { ExtractedContent } from './extractor.js';
-import puppeteer, { Browser, PDFOptions } from 'puppeteer';
+import puppeteer, { Browser, PDFOptions } from 'puppeteer-core';
 import * as fs from 'fs';
 import * as path from 'path';
 import EPub from 'epub-gen-memory';

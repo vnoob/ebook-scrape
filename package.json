@@ -11,13 +11,20 @@
     "ebook-scape": "./dist/index.js"
   },
   "scripts": {
-    "build": "tsc",
-    "build:exe": "npm run build && pkg package.json",
+    "clean:dist": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
+    "clean:pkg": "node -e \"require('fs').rmSync('node_modules/puppeteer/.local-chromium', { recursive: true, force: true }); require('fs').rmSync('node_modules/puppeteer-core/.local-chromium', { recursive: true, force: true })\"",
+    "build": "npm run clean:dist && tsc",
+    "build:exe": "npm run build && npm run clean:pkg && pkg package.json",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts"
   },
   "pkg": {
-    "scripts": "dist/**/*.js",
+    "scripts": [
+      "dist/index.js",
+      "node_modules/puppeteer-extra-plugin-stealth/evasions/*/index.js",
+      "node_modules/puppeteer-extra-plugin-stealth/evasions/_utils/index.js",
+      "node_modules/puppeteer-extra-plugin-stealth/evasions/_utils/withUtils.js"
+    ],
     "targets": [
       "node22-linux-x64",
       "node22-win-x64",
@@ -48,7 +55,7 @@
     "jsdom": "^24.0.0",
     "ora": "^5.4.1",
     "p-limit": "^7.3.0",
-    "puppeteer": "^22.0.0",
+    "puppeteer-core": "^22.0.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2"
   },

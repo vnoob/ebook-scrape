@@ -13,8 +13,8 @@ const puppeteerExtraWithUse = puppeteerExtra as unknown as {
 
 puppeteerExtraWithUse.use(StealthPlugin());
 
-export const puppeteer: typeof import('puppeteer') =
-  puppeteerExtra as unknown as typeof import('puppeteer');
+export const puppeteer: typeof import('puppeteer-core') =
+  puppeteerExtra as unknown as typeof import('puppeteer-core');
 
 /**
  * Find the Chrome/Edge executable path on the system
@@ -125,6 +125,6 @@ export function getPuppeteerLaunchOptions() {
     };
   }
 
-  console.log('Using bundled Chromium (no local Chrome/Edge found)');
+  console.log('No local Chrome/Edge found; Puppeteer will use its default executable resolution');
   return baseOptions;
 }
