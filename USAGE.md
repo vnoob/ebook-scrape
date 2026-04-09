@@ -86,6 +86,11 @@ ebook-scape --url https://blog.example.com --out blog-book.pdf --max 999
 | `--out <path>` | `-o` | ✅ Yes | - | Output file path |
 | `--format <type>` | `-f` | ❌ No | `pdf` | Format: pdf or epub |
 | `--max <number>` | `-m` | ❌ No | `10` | Max articles to process |
+| `--layout-mode <mode>` | `-l` | ❌ No | `static` | Layout mode: static or ai |
+| `--ai-provider <provider>` | - | ❌ No | `gemini` | AI provider: gemini, openai, or anthropic |
+| `--ai-model <model>` | - | ❌ No | provider default | AI model name (provider-specific) |
+| `--ai-api-key <key>` | - | ❌ No | environment/default | API key for selected AI provider |
+| `--no-cache` | - | ❌ No | cache enabled | Disable AI response cache |
 | `--help` | `-h` | ❌ No | - | Show help |
 | `--version` | `-V` | ❌ No | - | Show version |
 
@@ -113,6 +118,12 @@ ebook-scape-win.exe --url https://myblog.com/posts --out complete-blog.pdf --max
 
 ```bash
 ebook-scape-win.exe -u https://blog.com -o book.pdf -f pdf -m 15
+```
+
+### Example 5: AI Layout Mode
+
+```bash
+ebook-scape-win.exe --url https://blog.example.com --out ai-layout.pdf --layout-mode ai --ai-provider gemini
 ```
 
 ## 📂 Output Files
@@ -248,6 +259,11 @@ Options:
   -o, --out <path>     Output eBook file path
   -f, --format <type>  Output format: pdf or epub (default: "pdf")
   -m, --max <number>   Maximum number of articles to process (default: "10")
+  -l, --layout-mode <mode>  Layout mode: static or ai (default: "static")
+      --ai-provider <provider>  AI provider: gemini, openai, or anthropic (default: "gemini")
+      --ai-model <model>  AI model name (provider-specific)
+      --ai-api-key <key>  API key for AI provider
+      --no-cache          Skip AI response cache
   -h, --help           display help for command
 ```
 
