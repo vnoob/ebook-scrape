@@ -279,8 +279,8 @@ function generateChapters(articles: Article[]): string {
  * @param articles - Array of articles
  * @returns Complete HTML string
  */
-function buildMasterHTML(articles: Article[]): string {
-  const styles = generatePDFStyles();
+function buildMasterHTML(articles: Article[], aiCSS?: string): string {
+  const styles = aiCSS ? `<style>\n${aiCSS}\n</style>` : generatePDFStyles();
   const toc = generateTableOfContents(articles);
   const chapters = generateChapters(articles);
 
@@ -305,7 +305,11 @@ ${chapters}
  * @param outputPath - Path where the PDF should be saved
  * @returns Promise that resolves when PDF is created
  */
-export async function buildPDF(articles: Article[], outputPath: string): Promise<void> {
+export async function buildPDF(
+  articles: Article[],
+  outputPath: string,
+  aiCSS?: string
+): Promise<void> {
   let browser: Browser | null = null;
 
   try {
@@ -324,7 +328,7 @@ export async function buildPDF(articles: Article[], outputPath: string): Promise
 
     console.log(`\n📄 Building PDF with ${articles.length} article(s)...`);
 
-    const masterHTML = buildMasterHTML(articles);
+    const masterHTML = buildMasterHTML(articles, aiCSS);
 
     browser = await puppeteer.launch(getPuppeteerLaunchOptions());
 

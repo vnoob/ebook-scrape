@@ -1,5 +1,5 @@
-import puppeteer, { Browser, Page } from 'puppeteer';
-import { getPuppeteerLaunchOptions } from './browser-utils.js';
+import { Browser, Page } from 'puppeteer';
+import { getPuppeteerLaunchOptions, puppeteer, REALISTIC_USER_AGENT } from './browser-utils.js';
 
 /**
  * Resource types to block for faster scraping
@@ -103,23 +103,139 @@ function isArticleLink(href: string, baseUrl: string): boolean {
 }
 
 /**
+ * Common selectors for pagination "Next" buttons
+ */
+const NEXT_PAGE_SELECTORS = [
+  'a.next',
+  'a[rel="next"]',
+  'a[aria-label*="next" i]',
+  'a.pagination__next',
+  'a.pagination-next',
+  'a[class*="next" i]',
+  'link[rel="next"]',
+  '.pagination a:last-child',
+  'button[aria-label*="next" i]'
+];
+
+/**
+ * Extract article links from the current page
+ * @param page - Puppeteer page instance
+ * @param baseUrl - The base URL for reference
+ * @returns Array of article URLs found on the current page
+ */
+async function extractArticleLinksFromPage(page: Page, baseUrl: string): Promise<string[]> {
+  const links = await page.evaluate(() => {
+    const anchorElements = Array.from(document.querySelectorAll('a[href]'));
+    return anchorElements
+      .map(anchor => (anchor as HTMLAnchorElement).href)
+      .filter(href => href && href.trim() !== '');
+  });
+
+  return links
+    .filter(href => isArticleLink(href, baseUrl))
+    .map(href => {
+      try {
+        const url = new URL(href);
+        url.hash = '';
+        return url.toString();
+      } catch {
+        return href;
+      }
+    });
+}
+
+/**
+ * Attempt to find and navigate to the next page
+ * @param page - Puppeteer page instance
+ * @returns The next page URL if found, null otherwise
+ */
+/**
+ * Find a "Next" pagination link by anchor text (Playwright-style :has-text is not valid in querySelector).
+ */
+async function findNextPageUrlByAnchorText(page: Page): Promise<string | null> {
+  return page.evaluate(() => {
+    const anchors = Array.from(document.querySelectorAll('a[href]')) as HTMLAnchorElement[];
+    for (const a of anchors) {
+      const text = (a.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!/^next\b/i.test(text) || text.length > 40) {
+        continue;
+      }
+      const href = a.href;
+      if (href) {
+        return href;
+      }
+    }
+    return null;
+  });
+}
+
+async function findNextPageUrl(page: Page): Promise<string | null> {
+  for (const selector of NEXT_PAGE_SELECTORS) {
+    try {
+      const nextUrl = await page.evaluate((sel) => {
+        const element = document.querySelector(sel);
+        if (element && (element as HTMLAnchorElement).href) {
+          return (element as HTMLAnchorElement).href;
+        }
+        return null;
+      }, selector);
+
+      if (nextUrl) {
+        return nextUrl;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return findNextPageUrlByAnchorText(page);
+}
+
+/**
+ * Attempt infinite scroll to load more content
+ * @param page - Puppeteer page instance
+ * @returns Boolean indicating if new content was loaded
+ */
+async function attemptInfiniteScroll(page: Page): Promise<boolean> {
+  const initialHeight = await page.evaluate(() => document.body.scrollHeight);
+  
+  await page.evaluate(() => {
+    window.scrollTo(0, document.body.scrollHeight);
+  });
+
+  try {
+    await page.waitForFunction(
+      (prevHeight) => document.body.scrollHeight > prevHeight,
+      { timeout: 3000 },
+      initialHeight
+    );
+    
+    await page.waitForNetworkIdle({ timeout: 2000 }).catch(() => {});
+    
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Get all article links from a base URL
  * @param baseUrl - The blog's base URL to scrape
+ * @param maxPages - Maximum number of pages to scrape (default: 5)
  * @returns Promise containing an array of unique article URLs
  */
-export async function getArticleLinks(baseUrl: string): Promise<string[]> {
+export async function getArticleLinks(baseUrl: string, maxPages: number = 5): Promise<string[]> {
   let browser: Browser | null = null;
   
   try {
+    // @ts-ignore - puppeteer-extra is compatible with puppeteer API
     browser = await puppeteer.launch(getPuppeteerLaunchOptions());
 
-    const page: Page = await browser.newPage();
+    const page: Page = await browser!.newPage();
     
     await setupRequestInterception(page);
     
-    await page.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    );
+    await page.setUserAgent(REALISTIC_USER_AGENT);
 
     await page.setViewport({ width: 1920, height: 1080 });
 
@@ -128,28 +244,60 @@ export async function getArticleLinks(baseUrl: string): Promise<string[]> {
       timeout: 30000
     });
 
-    const links = await page.evaluate(() => {
-      const anchorElements = Array.from(document.querySelectorAll('a[href]'));
-      return anchorElements
-        .map(anchor => (anchor as HTMLAnchorElement).href)
-        .filter(href => href && href.trim() !== '');
-    });
+    const allArticleLinks = new Set<string>();
+    let currentPage = 1;
+    let scrollAttempts = 0;
+    const maxScrollAttempts = 3;
+    let visitedUrls = new Set<string>([baseUrl]);
 
-    const articleLinks = links
-      .filter(href => isArticleLink(href, baseUrl))
-      .map(href => {
+    while (currentPage <= maxPages) {
+      const pageLinks = await extractArticleLinksFromPage(page, baseUrl);
+      
+      pageLinks.forEach(link => allArticleLinks.add(link));
+
+      if (currentPage >= maxPages) {
+        break;
+      }
+
+      const nextPageUrl = await findNextPageUrl(page);
+
+      if (nextPageUrl && !visitedUrls.has(nextPageUrl)) {
         try {
-          const url = new URL(href);
-          url.hash = '';
-          return url.toString();
-        } catch {
-          return href;
+          visitedUrls.add(nextPageUrl);
+          await page.goto(nextPageUrl, {
+            waitUntil: 'domcontentloaded',
+            timeout: 30000
+          });
+          currentPage++;
+          scrollAttempts = 0;
+          continue;
+        } catch (error) {
+          console.warn(`Failed to navigate to next page: ${nextPageUrl}`);
+          break;
         }
-      });
+      }
 
-    const uniqueLinks = Array.from(new Set(articleLinks));
+      if (scrollAttempts >= maxScrollAttempts) {
+        break;
+      }
 
-    return uniqueLinks;
+      const previousCount = allArticleLinks.size;
+      const scrollSuccessful = await attemptInfiniteScroll(page);
+      
+      if (scrollSuccessful) {
+        scrollAttempts++;
+        const newLinks = await extractArticleLinksFromPage(page, baseUrl);
+        newLinks.forEach(link => allArticleLinks.add(link));
+        
+        if (allArticleLinks.size === previousCount) {
+          break;
+        }
+      } else {
+        break;
+      }
+    }
+
+    return Array.from(allArticleLinks);
   } catch (error) {
     throw new Error(`Failed to get article links: ${error instanceof Error ? error.message : 'Unknown error'}`);
   } finally {
@@ -168,15 +316,14 @@ export async function crawl(url: string): Promise<string> {
   let browser: Browser | null = null;
   
   try {
+    // @ts-ignore - puppeteer-extra is compatible with puppeteer API
     browser = await puppeteer.launch(getPuppeteerLaunchOptions());
 
-    const page: Page = await browser.newPage();
+    const page: Page = await browser!.newPage();
     
     await setupRequestInterception(page);
     
-    await page.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    );
+    await page.setUserAgent(REALISTIC_USER_AGENT);
 
     await page.goto(url, {
       waitUntil: 'networkidle2',

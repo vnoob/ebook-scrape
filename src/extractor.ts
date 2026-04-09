@@ -1,7 +1,8 @@
 import { Readability } from '@mozilla/readability';
 import { JSDOM } from 'jsdom';
-import puppeteer, { Browser, Page } from 'puppeteer';
-import { getPuppeteerLaunchOptions } from './browser-utils.js';
+import { Browser, Page } from 'puppeteer';
+import pLimit from 'p-limit';
+import { getPuppeteerLaunchOptions, puppeteer, REALISTIC_USER_AGENT } from './browser-utils.js';
 
 export interface ExtractedContent {
   title: string;
@@ -59,6 +60,89 @@ function cleanHTMLWhitespace(html: string): string {
 }
 
 /**
+ * Preserve whitespace in code blocks by adding inline styles
+ * @param document - JSDOM document
+ */
+function preserveCodeBlockWhitespace(document: Document): void {
+  const preElements = document.querySelectorAll('pre');
+  preElements.forEach((pre) => {
+    const existingStyle = pre.getAttribute('style') || '';
+    pre.setAttribute('style', `${existingStyle}; white-space: pre-wrap; font-family: monospace; background-color: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto;`);
+  });
+
+  const codeElements = document.querySelectorAll('code');
+  codeElements.forEach((code) => {
+    const isInPre = code.closest('pre');
+    if (!isInPre) {
+      const existingStyle = code.getAttribute('style') || '';
+      code.setAttribute('style', `${existingStyle}; white-space: pre; font-family: monospace; background-color: #f5f5f5; padding: 2px 4px; border-radius: 3px;`);
+    }
+  });
+}
+
+/**
+ * Resolve iframe src to an http(s) URL only; blocks javascript: and other schemes.
+ * @param src - Raw src attribute
+ * @returns Safe href or null
+ */
+function safeIframeHttpHref(src: string, baseUrl: string): string | null {
+  const trimmed = src.trim();
+  if (!trimmed || /^javascript:/i.test(trimmed) || /^vbscript:/i.test(trimmed)) {
+    return null;
+  }
+  try {
+    const resolved = new URL(trimmed, baseUrl);
+    if (resolved.protocol !== 'http:' && resolved.protocol !== 'https:') {
+      return null;
+    }
+    return resolved.href;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Replace iframe elements with clickable fallback links
+ * @param document - JSDOM document
+ */
+function replaceIframesWithLinks(document: Document, baseUrl: string): void {
+  const iframes = document.querySelectorAll('iframe');
+  iframes.forEach((iframe) => {
+    const src = iframe.getAttribute('src');
+    if (src) {
+      const safeHref = safeIframeHttpHref(src, baseUrl);
+      if (!safeHref) {
+        iframe.remove();
+        return;
+      }
+      const fallbackElement = document.createElement('p');
+      const strong = document.createElement('strong');
+      strong.textContent = '[Embedded Media]';
+      fallbackElement.appendChild(strong);
+      fallbackElement.appendChild(document.createTextNode(' '));
+      const link = document.createElement('a');
+      link.href = safeHref;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = safeHref;
+      fallbackElement.appendChild(link);
+      iframe.parentNode?.replaceChild(fallbackElement, iframe);
+    } else {
+      iframe.remove();
+    }
+  });
+}
+
+/**
+ * Preprocess HTML before passing to Readability
+ * @param document - JSDOM document
+ */
+function preprocessHTMLForReadability(document: Document, baseUrl: string): void {
+  preserveCodeBlockWhitespace(document);
+  replaceIframesWithLinks(document, baseUrl);
+}
+
+/**
  * Remove unwanted elements from HTML
  * @param document - JSDOM document
  */
@@ -66,7 +150,6 @@ function removeUnwantedElements(document: Document): void {
   const selectorsToRemove = [
     'script',
     'style',
-    'iframe',
     'noscript',
     '.ad',
     '.advertisement',
@@ -144,68 +227,97 @@ function convertRelativeUrlsToAbsolute(html: string, baseUrl: string): string {
 }
 
 /**
- * Extract content from multiple URLs using Puppeteer and Readability
- * @param urls - Array of URLs to extract content from
- * @returns Promise containing array of extracted article content
+ * Extract content from a single URL
+ * @param browser - Shared browser instance
+ * @param url - URL to extract content from
+ * @returns Promise containing extracted article content or null if failed
  */
-export async function extractContent(urls: string[]): Promise<ArticleContent[]> {
-  let browser: Browser | null = null;
-  const results: ArticleContent[] = [];
+async function extractSingleUrl(browser: Browser, url: string): Promise<ArticleContent | null> {
+  let page: Page | null = null;
 
   try {
-    browser = await puppeteer.launch(getPuppeteerLaunchOptions());
+    page = await browser.newPage();
 
-    for (const url of urls) {
-      try {
-        const page: Page = await browser.newPage();
+    await page.setUserAgent(REALISTIC_USER_AGENT);
 
-        await page.setUserAgent(
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        );
+    await page.setViewport({ width: 1920, height: 1080 });
 
-        await page.setViewport({ width: 1920, height: 1080 });
+    await page.goto(url, {
+      waitUntil: 'networkidle0',
+      timeout: 60000
+    });
 
-        await page.goto(url, {
-          waitUntil: 'networkidle0',
-          timeout: 60000
-        });
+    await autoScrollPage(page);
 
-        await autoScrollPage(page);
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
-        await new Promise(resolve => setTimeout(resolve, 1000));
+    const html = await page.content();
 
-        const html = await page.content();
+    const dom = new JSDOM(html, { url });
+    const document = dom.window.document;
+    
+    preprocessHTMLForReadability(document, url);
+    
+    const reader = new Readability(document);
+    const article = reader.parse();
 
-        await page.close();
-
-        const dom = new JSDOM(html, { url });
-        const reader = new Readability(dom.window.document);
-        const article = reader.parse();
-
-        if (!article) {
-          console.warn(`Failed to parse article from: ${url}`);
-          continue;
-        }
-
-        const contentWithAbsoluteUrls = convertRelativeUrlsToAbsolute(article.content, url);
-
-        results.push({
-          title: article.title,
-          contentHTML: contentWithAbsoluteUrls
-        });
-
-        console.log(`✓ Extracted: ${article.title}`);
-      } catch (error) {
-        console.error(`Failed to extract content from ${url}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
+    if (!article) {
+      console.warn(`Failed to parse article from: ${url}`);
+      return null;
     }
 
-    return results;
+    const contentWithAbsoluteUrls = convertRelativeUrlsToAbsolute(article.content, url);
+
+    return {
+      title: article.title,
+      contentHTML: contentWithAbsoluteUrls
+    };
+  } catch (error) {
+    console.warn(
+      `Failed to extract content from ${url}: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+    return null;
+  } finally {
+    if (page) {
+      await page.close().catch(() => {});
+    }
+  }
+}
+
+/**
+ * Extract content from multiple URLs using Puppeteer and Readability
+ * @param urls - Array of URLs to extract content from
+ * @param concurrencyLimit - Maximum number of concurrent pages (default: 5)
+ * @returns Promise containing array of extracted article content
+ */
+export async function extractContent(
+  urls: string[],
+  concurrencyLimit: number = 5
+): Promise<ArticleContent[]> {
+  let browser: Browser | null = null;
+  const safeConcurrency = Math.max(1, Math.floor(concurrencyLimit) || 1);
+  const limit = pLimit(safeConcurrency);
+
+  try {
+    // @ts-ignore - puppeteer-extra is compatible with puppeteer API
+    browser = await puppeteer.launch(getPuppeteerLaunchOptions());
+
+    const extractionPromises = urls.map((url) =>
+      limit(async () => {
+        return extractSingleUrl(browser!, url);
+      })
+    );
+
+    const results = await Promise.all(extractionPromises);
+
+    const successfulResults = results.filter((result): result is ArticleContent => result !== null);
+
+    return successfulResults;
   } catch (error) {
     throw new Error(`Failed to extract content: ${error instanceof Error ? error.message : 'Unknown error'}`);
   } finally {
     if (browser) {
-      await browser.close();
+      await browser.close().catch(() => {});
     }
   }
 }
@@ -221,7 +333,11 @@ export async function extract(html: string): Promise<ExtractedContent> {
       url: 'https://example.com'
     });
 
-    const reader = new Readability(dom.window.document);
+    const document = dom.window.document;
+    
+    preprocessHTMLForReadability(document, 'https://example.com');
+    
+    const reader = new Readability(document);
     const article = reader.parse();
 
     if (!article) {
