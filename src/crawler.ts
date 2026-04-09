@@ -114,7 +114,6 @@ const NEXT_PAGE_SELECTORS = [
   'a[class*="next" i]',
   'link[rel="next"]',
   '.pagination a:last-child',
-  'a:has-text("Next")',
   'button[aria-label*="next" i]'
 ];
 
@@ -150,6 +149,26 @@ async function extractArticleLinksFromPage(page: Page, baseUrl: string): Promise
  * @param page - Puppeteer page instance
  * @returns The next page URL if found, null otherwise
  */
+/**
+ * Find a "Next" pagination link by anchor text (Playwright-style :has-text is not valid in querySelector).
+ */
+async function findNextPageUrlByAnchorText(page: Page): Promise<string | null> {
+  return page.evaluate(() => {
+    const anchors = Array.from(document.querySelectorAll('a[href]')) as HTMLAnchorElement[];
+    for (const a of anchors) {
+      const text = (a.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!/^next\b/i.test(text) || text.length > 40) {
+        continue;
+      }
+      const href = a.href;
+      if (href) {
+        return href;
+      }
+    }
+    return null;
+  });
+}
+
 async function findNextPageUrl(page: Page): Promise<string | null> {
   for (const selector of NEXT_PAGE_SELECTORS) {
     try {
@@ -168,8 +187,8 @@ async function findNextPageUrl(page: Page): Promise<string | null> {
       continue;
     }
   }
-  
-  return null;
+
+  return findNextPageUrlByAnchorText(page);
 }
 
 /**
@@ -227,6 +246,8 @@ export async function getArticleLinks(baseUrl: string, maxPages: number = 5): Pr
 
     const allArticleLinks = new Set<string>();
     let currentPage = 1;
+    let scrollAttempts = 0;
+    const maxScrollAttempts = 3;
     let visitedUrls = new Set<string>([baseUrl]);
 
     while (currentPage <= maxPages) {
@@ -248,6 +269,7 @@ export async function getArticleLinks(baseUrl: string, maxPages: number = 5): Pr
             timeout: 30000
           });
           currentPage++;
+          scrollAttempts = 0;
           continue;
         } catch (error) {
           console.warn(`Failed to navigate to next page: ${nextPageUrl}`);
@@ -255,17 +277,21 @@ export async function getArticleLinks(baseUrl: string, maxPages: number = 5): Pr
         }
       }
 
+      if (scrollAttempts >= maxScrollAttempts) {
+        break;
+      }
+
       const previousCount = allArticleLinks.size;
       const scrollSuccessful = await attemptInfiniteScroll(page);
       
       if (scrollSuccessful) {
+        scrollAttempts++;
         const newLinks = await extractArticleLinksFromPage(page, baseUrl);
         newLinks.forEach(link => allArticleLinks.add(link));
         
         if (allArticleLinks.size === previousCount) {
           break;
         }
-        currentPage++;
       } else {
         break;
       }

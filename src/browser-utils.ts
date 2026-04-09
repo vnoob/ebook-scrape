@@ -7,11 +7,14 @@ import puppeteerExtra from 'puppeteer-extra';
 // @ts-ignore - puppeteer-extra-plugin-stealth has incomplete type definitions
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 
-// @ts-ignore
-puppeteerExtra.use(StealthPlugin());
+const puppeteerExtraWithUse = puppeteerExtra as unknown as {
+  use(plugin: unknown): unknown;
+};
 
-// @ts-ignore
-export const puppeteer = puppeteerExtra;
+puppeteerExtraWithUse.use(StealthPlugin());
+
+export const puppeteer: typeof import('puppeteer') =
+  puppeteerExtra as unknown as typeof import('puppeteer');
 
 /**
  * Find the Chrome/Edge executable path on the system

@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Convert blog posts to PDF or EPUB eBooks",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "main": "dist/index.js",
   "bin": {
     "ebook-scape": "./dist/index.js"
