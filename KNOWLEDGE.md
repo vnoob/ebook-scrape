@@ -116,6 +116,11 @@ User Input (URL)
 
 ## 4. Changelog
 
+### [2026-04-09] - PR review round 3: typing, logging, AI timeouts
+- **Author**: AI-assisted
+- **Changes**: Replaced blanket `@ts-ignore` export in browser utils with explicit typed cast for `puppeteer`; switched generator-stage AI messages to spinner-safe `info/warn` output; added abort-based timeout handling to AI provider fetch requests to avoid indefinite hangs
+- **Impact**: `src/browser-utils.ts`, `src/index.ts`, `src/ai-layout.ts`
+
 ### [2026-04-09] - PR review round 2: security, correctness, UX, CI
 - **Author**: AI-assisted
 - **Changes**: Reject `@import` and unsafe `url()` schemes in AI CSS validation; validate `concurrencyLimit` (clamp >=1); resolve relative iframe `src` against article URL instead of dummy host; separate scroll attempts from page navigation count in crawler; remove nested ora spinner from `extractContent` (CLI handles display); use Anthropic Messages API content-block array format; scope CI pkg packaging to single matrix target per runner

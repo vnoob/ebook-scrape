@@ -135,7 +135,8 @@ async function main() {
     
     if (format === 'epub') {
       if (layoutMode === 'ai') {
-        console.log('⚠️  AI layout mode is PDF-only in v1; EPUB will use static layout.');
+        generatorSpinner.warn('AI layout mode is PDF-only in v1; EPUB will use static layout.');
+        generatorSpinner.start(`Generating ${formatDisplay}...`);
       }
       const blogTitle = getBlogTitle(options.url);
       await buildEPUB(articles, outputPath, blogTitle);
@@ -147,7 +148,8 @@ async function main() {
         const apiKey = options.aiApiKey || apiKeyFromEnv;
         const selectedModel = options.aiModel || getDefaultModel(providerRaw);
         if (!apiKey) {
-          console.warn('⚠️  No API key provided for AI layout, using static layout fallback.');
+          generatorSpinner.warn('No API key provided for AI layout, using static layout fallback.');
+          generatorSpinner.start(`Generating ${formatDisplay}...`);
         } else {
           try {
             aiCSS = await getAILayout(
@@ -161,13 +163,16 @@ async function main() {
             ) ?? undefined;
 
             if (aiCSS) {
-              console.log(`ℹ️  AI CSS generated using ${providerRaw}/${selectedModel}`);
+              generatorSpinner.info(`AI CSS generated using ${providerRaw}/${selectedModel}`);
+              generatorSpinner.start(`Generating ${formatDisplay}...`);
             } else {
-              console.warn('⚠️  AI layout unavailable or invalid response, using static layout fallback.');
+              generatorSpinner.warn('AI layout unavailable or invalid response, using static layout fallback.');
+              generatorSpinner.start(`Generating ${formatDisplay}...`);
             }
           } catch (error) {
             const msg = error instanceof Error ? error.message : 'Unknown error';
-            console.warn(`⚠️  AI layout failed (${msg}), using static layout fallback.`);
+            generatorSpinner.warn(`AI layout failed (${msg}), using static layout fallback.`);
+            generatorSpinner.start(`Generating ${formatDisplay}...`);
           }
         }
       }
