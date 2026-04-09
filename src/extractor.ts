@@ -1,6 +1,6 @@
 import { Readability } from '@mozilla/readability';
 import { JSDOM } from 'jsdom';
-import { Browser, Page } from 'puppeteer';
+import { Browser, Page } from 'puppeteer-core';
 import pLimit from 'p-limit';
 import { getPuppeteerLaunchOptions, puppeteer, REALISTIC_USER_AGENT } from './browser-utils.js';
 

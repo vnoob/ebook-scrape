@@ -33,7 +33,7 @@
 ### Core Dependencies
 | Package | Version | Purpose |
 |---------|---------|---------|
-| puppeteer | ^22.0.0 | Headless browser automation |
+| puppeteer-core | ^22.0.0 | Headless browser automation (without bundled Chromium download) |
 | puppeteer-extra | ^3.3.6 | Plugin system for Puppeteer |
 | puppeteer-extra-plugin-stealth | ^2.11.2 | Anti-detection evasions |
 | @mozilla/readability | ^0.5.0 | Content extraction algorithm |
@@ -103,7 +103,7 @@ User Input (URL)
 2. **Request Interception**: Block unnecessary resources during discovery phase, allow during extraction
 3. **Lazy Loading Support**: Auto-scroll pages to trigger lazy-loaded content
 4. **Graceful Degradation**: Continue processing even if individual articles fail
-5. **Local Browser Preference**: Use system browser when available, fallback to bundled Chromium
+5. **Local Browser Preference**: Use system browser when available; rely on Puppeteer executable resolution when not detected
 
 ### Output Formats
 
@@ -115,6 +115,11 @@ User Input (URL)
 ---
 
 ## 4. Changelog
+
+### [2026-04-09] - Stabilize pkg packaging inputs and Puppeteer runtime
+- **Author**: AI-assisted
+- **Changes**: Switched dependency from `puppeteer` to `puppeteer-core`, cleaned `dist` before TypeScript builds to avoid stale outputs during packaging, narrowed `pkg` script entry to `dist/index.js`, and aligned browser module typing/imports to `puppeteer-core`.
+- **Impact**: `package.json`, `package-lock.json`, `src/browser-utils.ts`, `src/crawler.ts`, `src/extractor.ts`, `src/generator.ts`
 
 ### [2026-04-09] - Merge local main with origin/main
 - **Author**: AI-assisted
@@ -227,6 +232,7 @@ User Input (URL)
 - Some sites with aggressive anti-bot measures may still block scraping
 - Very large articles may cause memory issues
 - No retry mechanism for failed individual articles
+- `pkg` executable runtime can miss stealth plugin evasion submodules unless explicitly bundled as assets
 
 ### Technical Debt
 
