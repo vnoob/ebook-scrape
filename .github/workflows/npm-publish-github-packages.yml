@@ -74,7 +74,7 @@ jobs:
           path: dist/
       
       - name: Package executable
-        run: npm run build:exe
+        run: npx @yao-pkg/pkg package.json --targets node22-${{ matrix.target }}
       
       - name: Upload executable artifact (Linux)
         if: matrix.os == 'ubuntu-latest'

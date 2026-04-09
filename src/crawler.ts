@@ -246,6 +246,8 @@ export async function getArticleLinks(baseUrl: string, maxPages: number = 5): Pr
 
     const allArticleLinks = new Set<string>();
     let currentPage = 1;
+    let scrollAttempts = 0;
+    const maxScrollAttempts = 3;
     let visitedUrls = new Set<string>([baseUrl]);
 
     while (currentPage <= maxPages) {
@@ -267,6 +269,7 @@ export async function getArticleLinks(baseUrl: string, maxPages: number = 5): Pr
             timeout: 30000
           });
           currentPage++;
+          scrollAttempts = 0;
           continue;
         } catch (error) {
           console.warn(`Failed to navigate to next page: ${nextPageUrl}`);
@@ -274,17 +277,21 @@ export async function getArticleLinks(baseUrl: string, maxPages: number = 5): Pr
         }
       }
 
+      if (scrollAttempts >= maxScrollAttempts) {
+        break;
+      }
+
       const previousCount = allArticleLinks.size;
       const scrollSuccessful = await attemptInfiniteScroll(page);
       
       if (scrollSuccessful) {
+        scrollAttempts++;
         const newLinks = await extractArticleLinksFromPage(page, baseUrl);
         newLinks.forEach(link => allArticleLinks.add(link));
         
         if (allArticleLinks.size === previousCount) {
           break;
         }
-        currentPage++;
       } else {
         break;
       }

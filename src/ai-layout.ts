@@ -163,6 +163,11 @@ export function validateCSS(css: string): boolean {
   const closeBraces = (css.match(/\}/g) || []).length;
   if (openBraces !== closeBraces || openBraces < 5) return false;
 
+  if (/@import\b/i.test(css)) return false;
+
+  const unsafeUrlScheme = /url\s*\(\s*['"]?\s*(file:|data:|javascript:|vbscript:|chrome:|chrome-extension:)/i;
+  if (unsafeUrlScheme.test(css)) return false;
+
   return true;
 }
 
@@ -209,12 +214,12 @@ async function callAnthropic(prompt: string, model: string, apiKey: string): Pro
     body: JSON.stringify({
       model,
       max_tokens: 4096,
-      messages: [{ role: 'user', content: prompt }]
+      messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }]
     })
   });
   if (!res.ok) return null;
-  const data = (await res.json()) as { content?: Array<{ text?: string }> };
-  return data.content?.[0]?.text || null;
+  const data = (await res.json()) as { content?: Array<{ type?: string; text?: string }> };
+  return data.content?.find((block) => block.type === 'text')?.text || null;
 }
 
 export async function getAILayout(articles: Article[], options: AIOptions, noCache: boolean = false): Promise<string | null> {

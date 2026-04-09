@@ -116,6 +116,11 @@ User Input (URL)
 
 ## 4. Changelog
 
+### [2026-04-09] - PR review round 2: security, correctness, UX, CI
+- **Author**: AI-assisted
+- **Changes**: Reject `@import` and unsafe `url()` schemes in AI CSS validation; validate `concurrencyLimit` (clamp >=1); resolve relative iframe `src` against article URL instead of dummy host; separate scroll attempts from page navigation count in crawler; remove nested ora spinner from `extractContent` (CLI handles display); use Anthropic Messages API content-block array format; scope CI pkg packaging to single matrix target per runner
+- **Impact**: `src/ai-layout.ts`, `src/extractor.ts`, `src/crawler.ts`, `.github/workflows/npm-publish-github-packages.yml`
+
 ### [2026-04-09] - PR review: Node 20, crawler/extractor hardening
 - **Author**: AI-assisted
 - **Changes**: Enforced Node `>=20` in `package.json` and docs (aligns with `p-limit` 7); README badge and pkg example targets; safe iframe link DOM (http/https only, no `innerHTML` interpolation); removed invalid `:has-text` selector and added anchor-text “Next” fallback; single ora spinner during concurrent extraction; KNOWLEDGE footer and changelog placeholder cleanup
