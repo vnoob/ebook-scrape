@@ -18,6 +18,7 @@
 | **Cross-Platform Executables** | Standalone binaries for Linux, Windows, and macOS via pkg |
 | **Anti-Bot Bypass** | Puppeteer stealth plugin to avoid detection on protected sites |
 | **AI Layout Mode (PDF v1)** | Optional AI-generated CSS stylesheet for PDF output using metadata-only prompts, with cache + validation + static fallback |
+| **Optional Link Stripping** | `--strip-links` removes non-anchor hyperlinks from extracted content for cleaner PDF/EPUB output while keeping readable link text |
 
 ---
 
@@ -120,6 +121,11 @@ User Input (URL)
 - **Author**: AI-assisted
 - **Changes**: Added explicit `pkg.scripts` entries for `puppeteer-extra-plugin-stealth` evasion sub-modules and shared `_utils` so the dynamically-required evasions are included in the packaged executable snapshot.
 - **Impact**: `package.json`
+
+### [2026-04-10] - Add optional stripping of external URLs
+- **Author**: AI-assisted
+- **Changes**: Added `--strip-links` CLI flag and extraction pipeline option to replace non-anchor links with plain text before URL normalization; documented usage in README and USAGE.
+- **Impact**: `src/index.ts`, `src/extractor.ts`, `README.md`, `USAGE.md`, `KNOWLEDGE.md`
 
 ### [2026-04-09] - Stabilize pkg packaging inputs and Puppeteer runtime
 - **Author**: AI-assisted
@@ -247,5 +253,5 @@ User Input (URL)
 
 ---
 
-*Last Updated: 2026-04-09*
+*Last Updated: 2026-04-10*
 *Next Review: Before next commit*

@@ -22,6 +22,7 @@ program
   .option('--ai-provider <provider>', 'AI provider: gemini, openai, or anthropic', 'gemini')
   .option('--ai-model <model>', 'AI model name (provider-specific)')
   .option('--ai-api-key <key>', 'API key for AI provider')
+  .option('--strip-links', 'Remove hyperlinks from article content, keeping only text')
   .option('--no-cache', 'Skip AI response cache')
   .parse(process.argv);
 
@@ -34,6 +35,7 @@ const options = program.opts<{
   aiProvider: string;
   aiModel?: string;
   aiApiKey?: string;
+  stripLinks: boolean;
   cache: boolean;
 }>();
 
@@ -120,7 +122,9 @@ async function main() {
 
     // Step 2: Extract content
     const extractorSpinner = ora(`Extracting content from ${urlsToProcess.length} article(s)...`).start();
-    const articles = await extractContent(urlsToProcess);
+    const articles = await extractContent(urlsToProcess, 5, {
+      stripLinks: options.stripLinks
+    });
     
     if (articles.length === 0) {
       extractorSpinner.fail('No content could be extracted');

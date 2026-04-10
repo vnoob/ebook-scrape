@@ -91,6 +91,7 @@ npm start -- --url https://example.com/blog --out my-ebook.pdf --max 20
 | `--ai-provider <provider>` | - | AI provider: `gemini`, `openai`, `anthropic` | `gemini` | ❌ |
 | `--ai-model <model>` | - | AI model override for provider | Provider default | ❌ |
 | `--ai-api-key <key>` | - | API key for selected AI provider | Env var | ❌ |
+| `--strip-links` | - | Strip non-anchor links and keep plain link text only | `false` | ❌ |
 | `--no-cache` | - | Skip cached AI CSS and force fresh generation | false | ❌ |
 | `--help` | `-h` | Display help information | - | ❌ |
 | `--version` | `-V` | Display version number | - | ❌ |
@@ -125,6 +126,11 @@ npm start -- --url https://blog.example.com --out output.pdf --layout-mode ai --
 **Provide API key directly and skip cache:**
 ```bash
 npm start -- --url https://blog.example.com --out output.pdf --layout-mode ai --ai-provider gemini --ai-api-key YOUR_KEY --no-cache
+```
+
+**Strip external URLs from PDF/EPUB content:**
+```bash
+npm start -- --url https://blog.example.com --out clean.pdf --strip-links
 ```
 
 **Important:** AI mode in v1 only applies to PDF output and generates CSS only (HTML structure/content are unchanged). If AI fails or returns invalid CSS, ebook-scape automatically falls back to static layout.
@@ -309,7 +315,7 @@ const html = await crawl('https://blog.example.com/article');
 
 ### Extractor Module
 
-#### `extractContent(urls: string[]): Promise<ArticleContent[]>`
+#### `extractContent(urls: string[], concurrencyLimit?: number, options?: ExtractionOptions): Promise<ArticleContent[]>`
 
 Extracts clean content from multiple URLs.
 
@@ -317,7 +323,7 @@ Extracts clean content from multiple URLs.
 import { extractContent } from './extractor.js';
 
 const urls = ['https://blog.example.com/post1', 'https://blog.example.com/post2'];
-const articles = await extractContent(urls);
+const articles = await extractContent(urls, 5, { stripLinks: true });
 
 articles.forEach(article => {
   console.log(article.title);

@@ -21,6 +21,10 @@ export interface ArticleContent {
   contentHTML: string;
 }
 
+export interface ExtractionOptions {
+  stripLinks?: boolean;
+}
+
 /**
  * Scroll the page to load lazy-loaded images
  * @param page - Puppeteer page instance
@@ -227,12 +231,45 @@ function convertRelativeUrlsToAbsolute(html: string, baseUrl: string): string {
 }
 
 /**
+ * Strip non-anchor links from document, preserving visible text content.
+ * @param document - JSDOM document
+ * @returns Number of links stripped
+ */
+function stripExternalLinks(document: Document): number {
+  const links = document.querySelectorAll('a[href]');
+  let strippedCount = 0;
+
+  links.forEach((link) => {
+    try {
+      const href = link.getAttribute('href');
+      if (!href || href.startsWith('#') || !link.parentNode) {
+        return;
+      }
+
+      const text = document.createTextNode(link.textContent || '');
+      link.parentNode.replaceChild(text, link);
+      strippedCount++;
+    } catch {
+      const rawHref = link.getAttribute('href') || '(unknown href)';
+      console.warn(`Failed to strip link: ${rawHref}`);
+    }
+  });
+
+  return strippedCount;
+}
+
+/**
  * Extract content from a single URL
  * @param browser - Shared browser instance
  * @param url - URL to extract content from
+ * @param options - Extraction options
  * @returns Promise containing extracted article content or null if failed
  */
-async function extractSingleUrl(browser: Browser, url: string): Promise<ArticleContent | null> {
+async function extractSingleUrl(
+  browser: Browser,
+  url: string,
+  options: ExtractionOptions = {}
+): Promise<ArticleContent | null> {
   let page: Page | null = null;
 
   try {
@@ -257,7 +294,14 @@ async function extractSingleUrl(browser: Browser, url: string): Promise<ArticleC
     const document = dom.window.document;
     
     preprocessHTMLForReadability(document, url);
-    
+
+    if (options.stripLinks) {
+      const strippedCount = stripExternalLinks(document);
+      if (strippedCount > 0) {
+        console.debug(`Stripped ${strippedCount} link(s) from: ${url}`);
+      }
+    }
+
     const reader = new Readability(document);
     const article = reader.parse();
 
@@ -288,11 +332,13 @@ async function extractSingleUrl(browser: Browser, url: string): Promise<ArticleC
  * Extract content from multiple URLs using Puppeteer and Readability
  * @param urls - Array of URLs to extract content from
  * @param concurrencyLimit - Maximum number of concurrent pages (default: 5)
+ * @param options - Optional extraction behavior (e.g. strip non-anchor links before parsing)
  * @returns Promise containing array of extracted article content
  */
 export async function extractContent(
   urls: string[],
-  concurrencyLimit: number = 5
+  concurrencyLimit: number = 5,
+  options: ExtractionOptions = {}
 ): Promise<ArticleContent[]> {
   let browser: Browser | null = null;
   const safeConcurrency = Math.max(1, Math.floor(concurrencyLimit) || 1);
@@ -304,7 +350,7 @@ export async function extractContent(
 
     const extractionPromises = urls.map((url) =>
       limit(async () => {
-        return extractSingleUrl(browser!, url);
+        return extractSingleUrl(browser!, url, options);
       })
     );
 

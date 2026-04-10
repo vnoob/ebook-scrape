@@ -90,6 +90,7 @@ ebook-scape --url https://blog.example.com --out blog-book.pdf --max 999
 | `--ai-provider <provider>` | - | ❌ No | `gemini` | AI provider: gemini, openai, or anthropic |
 | `--ai-model <model>` | - | ❌ No | provider default | AI model name (provider-specific) |
 | `--ai-api-key <key>` | - | ❌ No | environment/default | API key for selected AI provider |
+| `--strip-links` | - | ❌ No | `false` | Strip non-anchor links and keep only visible text |
 | `--no-cache` | - | ❌ No | cache enabled | Disable AI response cache |
 | `--help` | `-h` | ❌ No | - | Show help |
 | `--version` | `-V` | ❌ No | - | Show version |
@@ -124,6 +125,12 @@ ebook-scape-win.exe -u https://blog.com -o book.pdf -f pdf -m 15
 
 ```bash
 ebook-scape-win.exe --url https://blog.example.com --out ai-layout.pdf --layout-mode ai --ai-provider gemini
+```
+
+### Example 6: Strip External URLs
+
+```bash
+ebook-scape-win.exe --url https://blog.example.com --out clean-book.pdf --strip-links
 ```
 
 ## 📂 Output Files
@@ -263,6 +270,7 @@ Options:
       --ai-provider <provider>  AI provider: gemini, openai, or anthropic (default: "gemini")
       --ai-model <model>  AI model name (provider-specific)
       --ai-api-key <key>  API key for AI provider
+      --strip-links       Remove hyperlinks from article content, keeping only text
       --no-cache          Skip AI response cache
   -h, --help           display help for command
 ```
