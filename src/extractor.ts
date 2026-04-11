@@ -346,7 +346,7 @@ export async function extractContent(
 
   try {
     // @ts-ignore - puppeteer-extra is compatible with puppeteer API
-    browser = await puppeteer.launch(getPuppeteerLaunchOptions());
+    browser = await puppeteer.launch(await getPuppeteerLaunchOptions());
 
     const extractionPromises = urls.map((url) =>
       limit(async () => {

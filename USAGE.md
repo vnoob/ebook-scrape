@@ -6,18 +6,18 @@ Quick guide for using the ebook-scape tool to convert blog posts into eBooks.
 
 ### Prerequisites
 
-You need one of the following browsers installed:
-- Google Chrome
-- Microsoft Edge
-- Chromium
-- Brave Browser
+Either:
+
+- **A system browser**: Google Chrome, Microsoft Edge, Chromium, or Brave, **or**
+- **Bundled Chromium** (full release): place `chromium-<platform>-<arch>.zip` (and its `.sha256` / `.buildid` sidecars from the same release) **next to the executable**. On first run, ebook-scape verifies the checksum and extracts into a `chromium/` folder beside the binary.
 
 ### Download
 
-Download the appropriate executable for your system:
-- **Windows**: `ebook-scape-win.exe`
-- **Linux**: `ebook-scape-linux`
-- **macOS**: `ebook-scape-macos`
+Download the appropriate executable **and matching Chromium zip** for your system (from the same release):
+
+- **Windows x64**: Windows `.exe` (e.g. `ebook-scape-win-x64.exe` or `ebook-scape-win.exe`) + `chromium-win32-x64.zip` (+ `.zip.sha256`, `.buildid`)
+- **Linux x64**: Linux binary (e.g. `ebook-scape-linux-x64`) + `chromium-linux-x64.zip` (+ sidecars)
+- **macOS x64**: macOS binary (e.g. `ebook-scape-macos-x64`) + `chromium-darwin-x64.zip` (+ sidecars)
 
 ## 📖 Basic Usage
 
@@ -200,11 +200,10 @@ It filters out:
 
 ### "Chrome not found" or "Browser error"
 
-**Solution**: Install one of these browsers:
-- [Google Chrome](https://www.google.com/chrome/)
-- [Microsoft Edge](https://www.microsoft.com/edge) (pre-installed on Windows 10/11)
-- [Chromium](https://www.chromium.org/getting-involved/download-chromium/)
-- [Brave Browser](https://brave.com/)
+**Solution**:
+
+1. Install a system browser: [Chrome](https://www.google.com/chrome/), [Edge](https://www.microsoft.com/edge), [Chromium](https://www.chromium.org/getting-involved/download-chromium/), or [Brave](https://brave.com/), **or**
+2. Use the **full release package**: keep `chromium-<platform>-<arch>.zip` next to the executable (first launch extracts it; you may see a short “Preparing browser…” step).
 
 ### "Permission denied" (Linux/macOS)
 

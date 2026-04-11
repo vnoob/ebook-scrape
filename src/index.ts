@@ -5,6 +5,7 @@ import ora from 'ora';
 import { getArticleLinks } from './crawler.js';
 import { extractContent } from './extractor.js';
 import { buildPDF, buildEPUB } from './generator.js';
+import { getPuppeteerLaunchOptions } from './browser-utils.js';
 import * as path from 'path';
 import { AIProvider, getAILayout, getDefaultModel } from './ai-layout.js';
 
@@ -103,6 +104,17 @@ async function main() {
 
     console.log(`\n📚 ebook-scape - Blog to ${formatDisplay} Converter`);
     console.log(`${'─'.repeat(50)}\n`);
+
+    const browserSpinner = ora('Preparing browser…').start();
+    try {
+      await getPuppeteerLaunchOptions((msg) => {
+        browserSpinner.text = msg;
+      });
+      browserSpinner.succeed('Browser ready');
+    } catch (err) {
+      browserSpinner.fail('Browser setup failed');
+      throw err;
+    }
 
     // Step 1: Discover articles
     const discoverySpinner = ora('Discovering article links...').start();

@@ -43,7 +43,7 @@ Transform any blog or website into professional eBooks with automatic content di
 ### Prerequisites
 
 - **Node.js** 20 or higher ([Download](https://nodejs.org/)) — required by dependencies (e.g. `p-limit` 7.x)
-- **Chrome, Edge, or Chromium** browser installed (for standalone executables)
+- **Chrome, Edge, Chromium, or Brave** — or the packaged **`chromium-<platform>-<arch>.zip`** from the same release placed next to the executable (auto-extracted on first run)
 
 ### Install Dependencies
 
@@ -232,7 +232,7 @@ Automatically finds and uses local browser installations:
 - microsoft-edge / microsoft-edge-stable
 - brave-browser
 
-**Fallback**: Uses bundled Chromium if no browser found.
+**Fallback**: If no system browser is found, looks for a zip named like `chromium-win32-x64.zip` / `chromium-linux-x64.zip` / `chromium-darwin-x64.zip` next to the binary (or in `./build` during development), verifies **SHA256** when a `.zip.sha256` sidecar exists, then extracts **chrome-headless-shell** into `./chromium/` (first run only; progress shown in the CLI).
 
 ## 🛠️ Development
 
@@ -254,7 +254,8 @@ npm run dev -- --url <URL> --out <PATH>
 | Script | Description |
 |--------|-------------|
 | `npm run build` | Compile TypeScript to JavaScript |
-| `npm run build:exe` | Build standalone executables |
+| `npm run download:chromium` | Download chrome-headless-shell zips into `build/` (all platforms; use `CHROMIUM_DOWNLOAD_CURRENT=1` for this OS only) |
+| `npm run build:exe` | Build standalone executables (`download:chromium` then `pkg`) |
 | `npm start` | Run the CLI tool |
 | `npm run dev` | Run with ts-node (development) |
 
@@ -263,6 +264,8 @@ npm run dev -- --url <URL> --out <PATH>
 ```
 ebook-scape/
 ├── package.json                    # Dependencies and scripts
+├── scripts/
+│   └── download-chromium.mjs       # Fetch chrome-headless-shell zips for packaging
 ├── tsconfig.json                   # TypeScript configuration
 ├── README.md                       # Documentation
 ├── .gitignore                      # Git ignore rules
@@ -373,28 +376,28 @@ await buildEPUB(articles, 'output/book.epub', 'My Blog Collection');
 
 ### Browser Utils Module
 
-#### `findChromiumExecutable(): string | undefined`
+#### `findChromiumExecutable(): BrowserInfo | undefined`
 
-Finds local Chrome/Edge/Chromium installation.
+Finds a **system** Chrome/Edge/Chromium/Brave installation (does not extract the bundled zip).
 
 ```typescript
 import { findChromiumExecutable } from './browser-utils.js';
 
-const browserPath = findChromiumExecutable();
-if (browserPath) {
-  console.log(`Found browser at: ${browserPath}`);
+const info = findChromiumExecutable();
+if (info) {
+  console.log(`Found ${info.name} at: ${info.path}`);
 }
 ```
 
-#### `getPuppeteerLaunchOptions(): object`
+#### `getPuppeteerLaunchOptions(onProgress?: (msg: string) => void): Promise<object>`
 
-Returns Puppeteer configuration with browser path.
+Resolves system browser or bundled chrome-headless-shell, then returns Puppeteer launch options.
 
 ```typescript
 import { getPuppeteerLaunchOptions } from './browser-utils.js';
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-core';
 
-const browser = await puppeteer.launch(getPuppeteerLaunchOptions());
+const browser = await puppeteer.launch(await getPuppeteerLaunchOptions());
 ```
 
 ## 🧪 Testing
@@ -470,8 +473,8 @@ Edit `package.json` to customize:
 Executables are standalone and portable:
 - ✅ No Node.js installation required
 - ✅ No npm dependencies needed
-- ✅ Single binary file
-- ⚠️ Requires Chrome/Edge/Chromium on target system
+- ✅ Single binary file (plus optional **chromium-*.zip** + checksum sidecars for offline fallback)
+- ⚠️ Without a system browser, ship the matching `chromium-<platform>-<arch>.zip` next to the exe
 
 ## 🔧 How It Works
 
@@ -507,6 +510,7 @@ Executables are standalone and portable:
 | **epub-gen-memory** | EPUB generation |
 | **pkg** | Executable packaging |
 | **chrome-paths** | Browser detection |
+| **extract-zip** | Bundled headless shell extraction |
 
 ## 🐛 Troubleshooting
 
@@ -517,9 +521,9 @@ Executables are standalone and portable:
 - Some blogs may have anti-scraping measures
 - Try a different blog page with article listings
 
-**2. "Failed to find Chrome/Edge"**
-- Install Chrome, Edge, Chromium, or Brave
-- The tool will fallback to bundled Chromium (slower)
+**2. "Failed to find Chrome/Edge" / `BrowserNotFoundError`**
+- Install Chrome, Edge, Chromium, or Brave, **or**
+- Place `chromium-<platform>-<arch>.zip` (and `.zip.sha256` / `.buildid` from `npm run download:chromium`) next to the executable; first launch extracts to `./chromium/`
 
 **3. "PDF generation failed"**
 - Ensure output directory exists

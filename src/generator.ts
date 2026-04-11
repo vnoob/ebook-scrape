@@ -330,7 +330,7 @@ export async function buildPDF(
 
     const masterHTML = buildMasterHTML(articles, aiCSS);
 
-    browser = await puppeteer.launch(getPuppeteerLaunchOptions());
+    browser = await puppeteer.launch(await getPuppeteerLaunchOptions());
 
     const page = await browser.newPage();
 

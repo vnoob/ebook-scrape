@@ -14,7 +14,7 @@
 | **PDF Generation** | Creates professional PDFs with clickable Table of Contents, page numbers, and proper formatting |
 | **EPUB Generation** | Generates EPUB files compatible with e-readers (Kindle, iPad, Kobo, etc.) |
 | **Performance Optimization** | Request interception blocks unnecessary resources (images, fonts, tracking) for 80% faster scraping |
-| **Browser Detection** | Automatically finds system Chrome/Edge/Chromium for standalone executables |
+| **Browser Detection** | Prefers system Chrome/Edge/Chromium/Brave; falls back to **chrome-headless-shell** from `chromium-<platform>-<arch>.zip` beside the executable (SHA256 verified, extracted once to `./chromium/`) |
 | **Cross-Platform Executables** | Standalone binaries for Linux, Windows, and macOS via pkg |
 | **Anti-Bot Bypass** | Puppeteer stealth plugin to avoid detection on protected sites |
 | **AI Layout Mode (PDF v1)** | Optional AI-generated CSS stylesheet for PDF output using metadata-only prompts, with cache + validation + static fallback |
@@ -45,6 +45,7 @@
 | chalk | ^4.1.2 | Terminal colors |
 | chrome-paths | ^1.0.1 | Browser path detection |
 | p-limit | ^7.3.0 | Concurrency control |
+| extract-zip | ^2.0.1 | Extract bundled chrome-headless-shell zip at runtime |
 | fetch (Node built-in) | Node 20+ | AI provider REST calls (Gemini/OpenAI/Anthropic) without SDKs |
 
 ### Dev Dependencies
@@ -52,6 +53,7 @@
 |---------|---------|---------|
 | typescript | ^5.4.0 | TypeScript compiler |
 | @yao-pkg/pkg | ^6.14.1 | Executable packaging |
+| @puppeteer/browsers | ^2.x | Download chrome-headless-shell zips for `npm run download:chromium` |
 | ts-node | ^10.9.0 | TypeScript execution |
 | @types/* | various | Type definitions |
 
@@ -62,13 +64,15 @@
 ### Module Structure
 
 ```
+scripts/
+└── download-chromium.mjs  # Fetch chrome-headless-shell zips for pkg releases
 src/
 ├── index.ts          # CLI entry point (Commander setup)
 ├── crawler.ts        # Article discovery & URL crawling
 ├── extractor.ts      # Content extraction with Readability
 ├── generator.ts      # PDF & EPUB generation (+ optional AI CSS for PDF)
 ├── ai-layout.ts      # AI prompt building, metadata extraction, CSS validation, caching
-├── browser-utils.ts  # Browser detection utilities
+├── browser-utils.ts  # Browser detection + bundled headless shell extraction
 └── chrome-paths.d.ts # Type definitions for chrome-paths
 ```
 
@@ -104,7 +108,7 @@ User Input (URL)
 2. **Request Interception**: Block unnecessary resources during discovery phase, allow during extraction
 3. **Lazy Loading Support**: Auto-scroll pages to trigger lazy-loaded content
 4. **Graceful Degradation**: Continue processing even if individual articles fail
-5. **Local Browser Preference**: Use system browser when available; rely on Puppeteer executable resolution when not detected
+5. **Local Browser Preference**: Use system browser when available; otherwise verify and extract **chrome-headless-shell** from a sidecar zip next to the executable (or `./build` when developing); never rely on Puppeteer-downloaded Chromium inside the pkg snapshot
 
 ### Output Formats
 
@@ -116,6 +120,16 @@ User Input (URL)
 ---
 
 ## 4. Changelog
+
+### [2026-04-11] - Bundled chrome-headless-shell fallback (zip beside executable)
+- **Author**: AI-assisted
+- **Changes**: Added `extract-zip` runtime extraction with optional `.zip.sha256` verification and `.buildid` / `.chromium-version` re-extract rules; `npm run download:chromium` (via `@puppeteer/browsers`, `unpack: false`) produces `build/chromium-<platform>-<arch>.zip` + sidecars; `build:exe` runs download before `pkg`; CLI primes browser with ora progress during first-time extract; GitHub Actions cache + `CHROMIUM_DOWNLOAD_CURRENT=1` for per-runner downloads; documented in README, USAGE, KNOWLEDGE.
+- **Impact**: `package.json`, `package-lock.json`, `scripts/download-chromium.mjs`, `src/browser-utils.ts`, `src/index.ts`, `src/crawler.ts`, `src/extractor.ts`, `src/generator.ts`, `.github/workflows/npm-publish-github-packages.yml`, `README.md`, `USAGE.md`, `KNOWLEDGE.md`
+
+### [2026-04-10] - Mandatory browser detection with PATH lookup
+- **Author**: AI-assisted
+- **Changes**: Enhanced browser detection to use `where`/`which` commands as fallback when filesystem paths fail; browser detection is now mandatory (throws `BrowserNotFoundError` instead of falling back to Puppeteer's bundled Chromium); returns browser name alongside path for clearer user feedback. This fixes `pkg` packaging failures caused by Puppeteer trying to spawn bundled Chromium which triggers antivirus blocks.
+- **Impact**: `src/browser-utils.ts`
 
 ### [2026-04-09] - Bundle stealth evasion modules for pkg executable
 - **Author**: AI-assisted
@@ -253,5 +267,5 @@ User Input (URL)
 
 ---
 
-*Last Updated: 2026-04-10*
+*Last Updated: 2026-04-11*
 *Next Review: Before next commit*

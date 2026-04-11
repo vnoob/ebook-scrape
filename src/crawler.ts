@@ -229,7 +229,7 @@ export async function getArticleLinks(baseUrl: string, maxPages: number = 5): Pr
   
   try {
     // @ts-ignore - puppeteer-extra is compatible with puppeteer API
-    browser = await puppeteer.launch(getPuppeteerLaunchOptions());
+    browser = await puppeteer.launch(await getPuppeteerLaunchOptions());
 
     const page: Page = await browser!.newPage();
     
@@ -317,7 +317,7 @@ export async function crawl(url: string): Promise<string> {
   
   try {
     // @ts-ignore - puppeteer-extra is compatible with puppeteer API
-    browser = await puppeteer.launch(getPuppeteerLaunchOptions());
+    browser = await puppeteer.launch(await getPuppeteerLaunchOptions());
 
     const page: Page = await browser!.newPage();
     
