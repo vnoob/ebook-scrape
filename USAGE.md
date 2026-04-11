@@ -92,6 +92,8 @@ ebook-scape --url https://blog.example.com --out blog-book.pdf --max 999
 | `--ai-api-key <key>` | - | ❌ No | environment/default | API key for selected AI provider |
 | `--no-strip-links` | - | ❌ No | strip links | Keep hyperlinks in article content |
 | `--no-filter` | - | ❌ No | filtering on | Disable omission of non-contributing pages |
+| `--lazy-load-timeout <ms>` | - | ❌ No | `20000` | Max ms for lazy content expansion (scroll, images, load-more) |
+| `--no-lazy-load` | - | ❌ No | lazy on | Skip lazy expansion (faster; may miss lazy-loaded content) |
 | `--no-cache` | - | ❌ No | cache enabled | Disable AI response cache |
 | `--help` | `-h` | ❌ No | - | Show help |
 | `--version` | `-V` | ❌ No | - | Show version |

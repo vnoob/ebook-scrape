@@ -178,3 +178,77 @@
   - *Send full content*: Wastes tokens; title + excerpt is sufficient for relevance detection
 - **Owner**: Tech Lead
 - **Status**: Approved
+
+## [2026-04-11] Peripheral Content Removal — Selector Strategy
+
+- **Decision**: Move `removeUnwantedElements()` call to pre-Readability phase (before `Readability.parse()`). Use `[class*="comment-"]` (hyphenated) instead of `[class*="comment"]` to avoid matching legitimate content like "commentary" sections. Expand selectors to cover discussions, related links, and recommendations.
+- **Alternatives rejected**:
+  - *Keep post-Readability only*: Too late; Readability may already include peripheral sections in extracted content
+  - *Use `[class*="comment"]` (no hyphen)*: Too aggressive; matches "commentary", "uncommented", etc.
+  - *Add `--no-strip-comments` flag*: Over-engineered for v1; users can file issues for edge cases
+- **Owner**: Tech Lead
+- **Status**: Approved
+
+## [2026-04-11] Lazy-Load Expansion — Live DOM Strip First
+
+- **Decision**: Run peripheral stripping in the **live Puppeteer page** as the first step inside `expandLazyContent()` using the same selector list as JSDOM (`non-content-selectors.ts`), then reveal lazy images, scroll with mutation-based stability windows, then click safe “load more” controls only inside `article` / `main` / `[role="main"]` / `.content`. Total budget default 20s; on timeout or errors, proceed with partial DOM (do not fail extraction). Unsafe `href` schemes and URL changes after click abort the load-more loop (`goBack` best-effort).
+- **Alternatives rejected**:
+  - *Import selectors from `lazy-loader` into `extractor`*: Would create circular imports; shared neutral module + re-export from `extractor` keeps one list
+  - *Broad `[class*="share"]` in shared list*: Replaced with `.share-buttons`, `.share-icons`, `[class*="social-"]` to reduce false positives (e.g. “Shakespeare”)
+  - *Always click “read more”*: Skipped; usually navigates to another article
+- **Owner**: Tech Lead
+- **Status**: Approved
+
+## [2026-04-11] Lazy Loading Support — Timeout and Fallback Behavior
+
+- **Decision**: Default `totalTimeout` is 20s (not 30s). On timeout, extraction proceeds with whatever content loaded — lazy loading failure should NOT abort extraction.
+- **Alternatives rejected**:
+  - *30s timeout*: Combined with 60s navigation timeout = 90s worst case per article; unacceptable for large article sets
+  - *Abort on timeout*: Too aggressive; partial content is better than no content
+- **Owner**: Tech Lead
+- **Status**: Approved
+
+## [2026-04-11] Lazy Loading Support — Selector Consolidation
+
+- **Decision**: Export `NON_CONTENT_SELECTORS` from `extractor.ts` and import into `lazy-loader.ts`. Single source of truth prevents selector drift between modules.
+- **Alternatives rejected**:
+  - *Duplicate selector list*: Maintenance burden; lists will diverge over time
+  - *Move selectors to shared constants file*: Over-engineered; `extractor.ts` is the natural owner
+- **Owner**: Tech Lead
+- **Status**: Approved
+
+## [2026-04-11] Lazy Loading Support — Share Selector Narrowing
+
+- **Decision**: Change `[class*="share"]` to `.share-buttons, .share-icons, [class*="social-"]` to avoid false positives on "Shakespeare", "Share your thoughts" input fields, etc.
+- **Alternatives rejected**:
+  - *Keep `[class*="share"]`*: Too broad; matches legitimate content
+  - *Remove share selectors entirely*: Social widgets are common and should be stripped
+- **Owner**: Tech Lead
+- **Status**: Approved
+
+## [2026-04-11] Lazy Loading Support — Click Safety Validation
+
+- **Decision**: Before clicking any "Load More" button, validate href is safe (reject `javascript:`, `data:`, `vbscript:` schemes). After clicking, check if URL changed; if so, call `page.goBack()` and abort click loop.
+- **Alternatives rejected**:
+  - *Click without validation*: Security risk; malicious pages could trigger arbitrary code
+  - *Skip all buttons with href*: Too conservative; many legitimate Load More buttons have `href="#"`
+- **Owner**: Tech Lead
+- **Status**: Approved
+
+## [2026-04-11] Lazy Loading Support — Progress Feedback
+
+- **Decision**: Add optional `onProgress?: (phase: string) => void` callback to `LazyLoadOptions`. CLI uses this to update spinner text during long waits. Marked `@internal` — not part of public library API.
+- **Alternatives rejected**:
+  - *No progress feedback*: 20s silent waits make CLI appear frozen
+  - *Console.log inside lazy-loader*: Violates separation of concerns; caller should control output
+- **Owner**: Tech Lead
+- **Status**: Approved
+
+## [2026-04-11] Lazy Loading Support — Phased Delivery
+
+- **Decision**: Split into Phase 1 (core module + integration + test stub) and Phase 2 (CLI flags + documentation). Enables smaller, reviewable PRs.
+- **Alternatives rejected**:
+  - *Single large PR*: Harder to review; delays feedback
+  - *Three or more phases*: Over-engineered for the scope
+- **Owner**: Tech Lead
+- **Status**: Approved

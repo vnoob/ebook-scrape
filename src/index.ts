@@ -27,6 +27,15 @@ program
   .option('--ai-api-key <key>', 'API key for AI provider')
   .option('--no-strip-links', 'Keep hyperlinks in article content (default: strip non-anchor links)')
   .option('--no-filter', 'Disable content filtering; include all successfully extracted pages')
+  .option(
+    '--lazy-load-timeout <ms>',
+    'Max time (ms) for lazy-loaded content expansion (strip, scroll, load-more)',
+    '20000'
+  )
+  .option(
+    '--no-lazy-load',
+    'Skip lazy content expansion (legacy scroll + short delay only; faster, may miss lazy content)'
+  )
   .option('--no-cache', 'Skip AI response cache')
   .parse(process.argv);
 
@@ -41,6 +50,8 @@ const options = program.opts<{
   aiApiKey?: string;
   stripLinks: boolean;
   filter: boolean;
+  lazyLoad: boolean;
+  lazyLoadTimeout: string;
   cache: boolean;
 }>();
 
@@ -105,6 +116,12 @@ async function main() {
       process.exit(1);
     }
 
+    const lazyLoadTimeout = parseInt(options.lazyLoadTimeout, 10);
+    if (isNaN(lazyLoadTimeout) || lazyLoadTimeout < 0) {
+      console.error('Error: --lazy-load-timeout must be a non-negative number');
+      process.exit(1);
+    }
+
     const layoutMode = options.layoutMode.toLowerCase();
     if (layoutMode !== 'static' && layoutMode !== 'ai') {
       console.error('Error: --layout-mode must be either "static" or "ai"');
@@ -126,7 +143,8 @@ async function main() {
     console.log(
       chalk.dim(
         'Tip: hyperlinks are stripped by default; use --no-strip-links to keep them. ' +
-          'Content filtering is on by default; use --no-filter to disable.'
+          'Content filtering is on by default; use --no-filter to disable. ' +
+          'Lazy-load expansion is on by default; use --no-lazy-load on slow or metered links.'
       )
     );
     console.log('');
@@ -168,7 +186,9 @@ async function main() {
     // Step 2: Extract content
     const extractorSpinner = ora(`Extracting content from ${urlsToProcess.length} article(s)...`).start();
     let articles = await extractContent(urlsToProcess, 5, {
-      stripLinks: options.stripLinks
+      stripLinks: options.stripLinks,
+      lazyLoad: options.lazyLoad,
+      lazyLoadTimeout
     });
 
     if (articles.length === 0) {

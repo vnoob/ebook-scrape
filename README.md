@@ -94,6 +94,8 @@ npm start -- --url https://example.com/blog --out my-ebook.pdf --max 20
 | `--ai-api-key <key>` | - | API key for selected AI provider | Env var | ❌ |
 | `--no-strip-links` | - | Keep hyperlinks in article content (default strips non-anchor links) | strip on | ❌ |
 | `--no-filter` | - | Disable content filtering; include all extracted pages | filter on | ❌ |
+| `--lazy-load-timeout <ms>` | - | Max time (ms) for lazy-loaded content expansion (strip nav, scroll, load-more) | `20000` | ❌ |
+| `--no-lazy-load` | - | Skip lazy expansion; use legacy scroll + short delay only (faster; may miss lazy content) | lazy on | ❌ |
 | `--no-cache` | - | Skip cached AI CSS and force fresh generation | false | ❌ |
 | `--help` | `-h` | Display help information | - | ❌ |
 | `--version` | `-V` | Display version number | - | ❌ |
@@ -139,6 +141,8 @@ npm start -- --url https://blog.example.com --out with-links.pdf --no-strip-link
 ```bash
 npm start -- --url https://blog.example.com --out everything.pdf --no-filter
 ```
+
+**Lazy loading (default on):** Extraction strips menus/footers in the live page, reveals lazy images, scrolls with DOM-stability waits, and may click safe “load more” controls inside the article. Use `--no-lazy-load` on slow or metered connections; tune total wait with `--lazy-load-timeout`.
 
 **Important:** AI mode in v1 only applies to PDF output and generates CSS only (HTML structure/content are unchanged). If AI fails or returns invalid CSS, ebook-scape automatically falls back to static layout.
 

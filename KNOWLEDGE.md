@@ -20,6 +20,8 @@
 | **AI Layout Mode (PDF v1)** | Optional AI-generated CSS stylesheet for PDF output using metadata-only prompts, with cache + validation + static fallback; prompt includes layout-efficiency guidance to reduce blank space in PDFs |
 | **Link stripping (default on)** | Non-anchor hyperlinks are stripped by default (`--no-strip-links` to preserve links); programmatic `extractContent` matches unless `stripLinks: false` |
 | **Content filtering (default on)** | After extraction, rule-based filter omits thin/error/login-heavy/duplicate/navigation-heavy pages; with `--ai-api-key` or `EBOOK_SCAPE_*_API_KEY`, uses batched AI smart filter (10 articles/call) with rule fallback per batch; `--no-filter` disables all filtering |
+| **Peripheral DOM stripping (pre-Readability)** | Before Readability, `extractor.ts` removes comments, discussions, related/recommended blocks, Disqus/WordPress comment areas, newsletter widgets, ads, and nav/aside/sidebars (selectors from `non-content-selectors.ts`); same pass runs again on extracted HTML for defense in depth |
+| **Lazy-load expansion (default on)** | After `page.goto`, `lazy-loader.ts` strips non-content in the live DOM, reveals lazy images (`data-src` → `src`), scrolls viewport-by-viewport with mutation-based stability waits, and may click safe “load more” controls inside `article`/`main`; `--lazy-load-timeout` (default 20s) caps work; `--no-lazy-load` uses legacy scroll + 1s delay only |
 
 ---
 
@@ -56,6 +58,7 @@
 | @yao-pkg/pkg | ^6.14.1 | Executable packaging |
 | @puppeteer/browsers | ^2.x | Download chrome-headless-shell zips for `npm run download:chromium` |
 | ts-node | ^10.9.0 | TypeScript execution |
+| vitest | ^3.x | Unit tests (`npm test`) |
 | @types/* | various | Type definitions |
 
 ---
@@ -68,14 +71,16 @@
 scripts/
 └── download-chromium.mjs  # Fetch chrome-headless-shell zips for pkg releases
 src/
-├── index.ts          # CLI entry point (Commander setup)
-├── crawler.ts        # Article discovery & URL crawling
-├── extractor.ts      # Content extraction with Readability (articles include source `url`)
-├── generator.ts      # PDF & EPUB generation (+ optional AI CSS for PDF)
-├── ai-layout.ts      # AI prompt building, metadata extraction, CSS validation, caching
-├── content-filter.ts # Rule-based + AI batched smart filtering for non-contributing pages
-├── browser-utils.ts  # Browser detection + bundled headless shell extraction
-└── chrome-paths.d.ts # Type definitions for chrome-paths
+├── index.ts                 # CLI entry point (Commander setup)
+├── crawler.ts               # Article discovery & URL crawling
+├── extractor.ts           # Content extraction with Readability (articles include source `url`)
+├── non-content-selectors.ts # Shared peripheral-DOM selector list (JSDOM + live page strip)
+├── lazy-loader.ts         # Live-page lazy expansion (strip, images, scroll, load-more)
+├── generator.ts             # PDF & EPUB generation (+ optional AI CSS for PDF)
+├── ai-layout.ts           # AI prompt building, metadata extraction, CSS validation, caching
+├── content-filter.ts      # Rule-based + AI batched smart filtering for non-contributing pages
+├── browser-utils.ts       # Browser detection + bundled headless shell extraction
+└── chrome-paths.d.ts      # Type definitions for chrome-paths
 ```
 
 ### Data Flow
@@ -113,7 +118,7 @@ User Input (URL)
 
 1. **Shared Browser Instance**: Single Puppeteer browser instance shared across operations for efficiency
 2. **Request Interception**: Block unnecessary resources during discovery phase, allow during extraction
-3. **Lazy Loading Support**: Auto-scroll pages to trigger lazy-loaded content
+3. **Lazy Loading Support**: `expandLazyContent()` strips peripheral DOM in the browser first, then reveals lazy images, scrolls with stability detection, and optionally clicks safe in-article load-more controls; CLI `--no-lazy-load` restores legacy scroll-only behavior
 4. **Graceful Degradation**: Continue processing even if individual articles fail
 5. **Local Browser Preference**: Use system browser when available; otherwise verify and extract **chrome-headless-shell** from a sidecar zip next to the executable (or `./build` when developing); never rely on Puppeteer-downloaded Chromium inside the pkg snapshot
 
@@ -127,6 +132,16 @@ User Input (URL)
 ---
 
 ## 4. Changelog
+
+### [2026-04-11] - Comprehensive lazy-load expansion (live page)
+- **Author**: AI-assisted
+- **Changes**: Added `src/lazy-loader.ts` and shared `src/non-content-selectors.ts`; extraction calls `expandLazyContent()` after navigation (default 20s budget) with strip → lazy images → scroll/stability → load-more loop; `NON_CONTENT_SELECTORS` narrows social-share patterns vs legacy `[class*="share"]`; CLI `--lazy-load-timeout` and `--no-lazy-load`; `ExtractionOptions` gains `lazyLoad` / `lazyLoadTimeout` / optional `onProgress`; Vitest + `tests/lazy-loader.test.ts` for pure helpers; docs in README/USAGE.
+- **Impact**: `src/extractor.ts`, `src/index.ts`, `package.json`, `README.md`, `USAGE.md`, `KNOWLEDGE.md`, `docs/decisions/DECISIONS.md`, new `src/lazy-loader.ts`, `src/non-content-selectors.ts`, `tests/lazy-loader.test.ts`, `vitest.config.ts`
+
+### [2026-04-11] - Omit peripheral sections from exports (pre-Readability)
+- **Author**: AI-assisted
+- **Changes**: Call `removeUnwantedElements()` before `Readability.parse()` in `extractSingleUrl()` and `extract()`; expanded selector list for comments (incl. Disqus/WordPress), discussions, related/recommended content, ads, newsletters, and social/share blocks; kept post-extraction pass in `convertRelativeUrlsToAbsolute()`. Documented selector strategy in `docs/decisions/DECISIONS.md` (Peripheral Content Removal).
+- **Impact**: `src/extractor.ts`, `KNOWLEDGE.md`, `docs/decisions/DECISIONS.md` (decision entry)
 
 ### [2026-04-11] - PDF layout + content filtering (v1.1.0)
 - **Author**: AI-assisted
@@ -250,7 +265,7 @@ User Input (URL)
    - Incremental updates for large blogs
 
 4. **Testing Infrastructure**
-   - Add Jest/Vitest for unit tests
+   - Vitest in place for pure helpers; extend with Puppeteer mocks or integration tests
    - Mock Puppeteer for faster CI
    - Add integration test suite
 
@@ -280,5 +295,5 @@ User Input (URL)
 
 ---
 
-*Last Updated: 2026-04-11 (content filtering + strip-links default)*
+*Last Updated: 2026-04-11 (comprehensive lazy-load expansion + shared non-content selectors)*
 *Next Review: Before next commit*

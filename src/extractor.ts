@@ -3,6 +3,10 @@ import { JSDOM } from 'jsdom';
 import { Browser, Page } from 'puppeteer-core';
 import pLimit from 'p-limit';
 import { getPuppeteerLaunchOptions, puppeteer, REALISTIC_USER_AGENT } from './browser-utils.js';
+import { expandLazyContent } from './lazy-loader.js';
+import { NON_CONTENT_SELECTORS } from './non-content-selectors.js';
+
+export { NON_CONTENT_SELECTORS };
 
 export interface ExtractedContent {
   title: string;
@@ -25,13 +29,22 @@ export interface ArticleContent {
 
 export interface ExtractionOptions {
   stripLinks?: boolean;
+  /** Max time (ms) for lazy-load expansion; default 20000. Ignored when `lazyLoad` is false. */
+  lazyLoadTimeout?: number;
+  /** When false, skip `expandLazyContent` and use legacy scroll + short delay only. Default true. */
+  lazyLoad?: boolean;
+  /**
+   * Optional progress phases (`strip`, `images`, `scroll`, `load-more`) for UI; may interleave across concurrent extractions.
+   * @internal
+   */
+  onProgress?: (phase: string) => void;
 }
 
 /**
- * Scroll the page to load lazy-loaded images
+ * Legacy full-page scroll used when lazy-load expansion is disabled.
  * @param page - Puppeteer page instance
  */
-async function autoScrollPage(page: Page): Promise<void> {
+async function _legacyAutoScrollPage(page: Page): Promise<void> {
   await page.evaluate(async () => {
     await new Promise<void>((resolve) => {
       let totalHeight = 0;
@@ -149,31 +162,13 @@ function preprocessHTMLForReadability(document: Document, baseUrl: string): void
 }
 
 /**
- * Remove unwanted elements from HTML
+ * Remove peripheral elements (comments, related links, ads, etc.) from the DOM.
+ * Called before Readability so those sections are not included in extracted content,
+ * and again after extraction in {@link convertRelativeUrlsToAbsolute} for defense in depth.
  * @param document - JSDOM document
  */
 function removeUnwantedElements(document: Document): void {
-  const selectorsToRemove = [
-    'script',
-    'style',
-    'noscript',
-    '.ad',
-    '.advertisement',
-    '.social-share',
-    '.comments',
-    '.related-posts',
-    '.newsletter-signup',
-    '[class*="share"]',
-    '[class*="social"]',
-    '[id*="comments"]',
-    'nav',
-    'footer:not(.chapter footer)',
-    'header:not(.chapter header)',
-    '.sidebar',
-    'aside'
-  ];
-
-  selectorsToRemove.forEach(selector => {
+  NON_CONTENT_SELECTORS.forEach((selector) => {
     const elements = document.querySelectorAll(selector);
     elements.forEach(el => el.remove());
   });
@@ -286,9 +281,16 @@ async function extractSingleUrl(
       timeout: 60000
     });
 
-    await autoScrollPage(page);
-
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    if (options.lazyLoad !== false) {
+      await expandLazyContent(page, {
+        totalTimeout: options.lazyLoadTimeout ?? 20000,
+        clickLoadMore: true,
+        onProgress: options.onProgress
+      });
+    } else {
+      await _legacyAutoScrollPage(page);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
 
     const html = await page.content();
 
@@ -296,6 +298,7 @@ async function extractSingleUrl(
     const document = dom.window.document;
     
     preprocessHTMLForReadability(document, url);
+    removeUnwantedElements(document);
 
     if (options.stripLinks) {
       const strippedCount = stripExternalLinks(document);
@@ -335,7 +338,7 @@ async function extractSingleUrl(
  * Extract content from multiple URLs using Puppeteer and Readability
  * @param urls - Array of URLs to extract content from
  * @param concurrencyLimit - Maximum number of concurrent pages (default: 5)
- * @param options - Optional extraction behavior; omit `stripLinks` or set `true` to strip non-anchor links (default); `false` keeps links
+ * @param options - Optional extraction behavior; omit `stripLinks` or set `true` to strip non-anchor links (default); `false` keeps links. Lazy-load expansion is on unless `lazyLoad` is false.
  * @returns Promise containing array of extracted article content
  */
 export async function extractContent(
@@ -349,7 +352,8 @@ export async function extractContent(
   // Default matches CLI: strip non-anchor links unless options.stripLinks === false
   const resolvedOptions: ExtractionOptions = {
     ...options,
-    stripLinks: options.stripLinks !== false
+    stripLinks: options.stripLinks !== false,
+    lazyLoad: options.lazyLoad !== false
   };
 
   try {
@@ -390,7 +394,8 @@ export async function extract(html: string): Promise<ExtractedContent> {
     const document = dom.window.document;
     
     preprocessHTMLForReadability(document, 'https://example.com');
-    
+    removeUnwantedElements(document);
+
     const reader = new Readability(document);
     const article = reader.parse();
 
