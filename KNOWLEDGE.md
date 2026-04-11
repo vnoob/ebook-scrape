@@ -17,8 +17,9 @@
 | **Browser Detection** | Prefers system Chrome/Edge/Chromium/Brave; falls back to **chrome-headless-shell** from `chromium-<platform>-<arch>.zip` beside the executable (SHA256 verified, extracted once to `./chromium/`) |
 | **Cross-Platform Executables** | Standalone binaries for Linux, Windows, and macOS via pkg |
 | **Anti-Bot Bypass** | Puppeteer stealth plugin to avoid detection on protected sites |
-| **AI Layout Mode (PDF v1)** | Optional AI-generated CSS stylesheet for PDF output using metadata-only prompts, with cache + validation + static fallback |
-| **Optional Link Stripping** | `--strip-links` removes non-anchor hyperlinks from extracted content for cleaner PDF/EPUB output while keeping readable link text |
+| **AI Layout Mode (PDF v1)** | Optional AI-generated CSS stylesheet for PDF output using metadata-only prompts, with cache + validation + static fallback; prompt includes layout-efficiency guidance to reduce blank space in PDFs |
+| **Link stripping (default on)** | Non-anchor hyperlinks are stripped by default (`--no-strip-links` to preserve links); programmatic `extractContent` matches unless `stripLinks: false` |
+| **Content filtering (default on)** | After extraction, rule-based filter omits thin/error/login-heavy/duplicate/navigation-heavy pages; with `--ai-api-key` or `EBOOK_SCAPE_*_API_KEY`, uses batched AI smart filter (10 articles/call) with rule fallback per batch; `--no-filter` disables all filtering |
 
 ---
 
@@ -69,9 +70,10 @@ scripts/
 src/
 ├── index.ts          # CLI entry point (Commander setup)
 ├── crawler.ts        # Article discovery & URL crawling
-├── extractor.ts      # Content extraction with Readability
+├── extractor.ts      # Content extraction with Readability (articles include source `url`)
 ├── generator.ts      # PDF & EPUB generation (+ optional AI CSS for PDF)
 ├── ai-layout.ts      # AI prompt building, metadata extraction, CSS validation, caching
+├── content-filter.ts # Rule-based + AI batched smart filtering for non-contributing pages
 ├── browser-utils.ts  # Browser detection + bundled headless shell extraction
 └── chrome-paths.d.ts # Type definitions for chrome-paths
 ```
@@ -88,13 +90,18 @@ User Input (URL)
       │
       ▼
 ┌──────────────┐
-│ extractor.ts │  ── extractContent() ──► Array<{title, contentHTML}>
+│ extractor.ts │  ── extractContent() ──► Array<{url, title, contentHTML}>
 └──────────────┘
       │
       ▼
 ┌──────────────┐
 │  ai-layout.ts│  ── getAILayout() ──► CSS string (optional, cached)
 └──────────────┘
+      │
+      ▼
+┌──────────────────┐
+│ content-filter.ts │  ── filterContent() / smartFilterContent() ──► kept articles + omissions (CLI)
+└──────────────────┘
       │
       ▼
 ┌──────────────┐
@@ -120,6 +127,11 @@ User Input (URL)
 ---
 
 ## 4. Changelog
+
+### [2026-04-11] - PDF layout + content filtering (v1.1.0)
+- **Author**: AI-assisted
+- **Changes**: CLI `1.1.0`: `--no-strip-links` (strip links by default); `--no-filter` to disable post-extraction filtering; `ArticleContent` includes `url`; `content-filter.ts` with heuristics + batched AI smart filter when API key present; AI layout prompt extended for compact PDF CSS; deprecation notice if legacy `--strip-links` is passed; `extractContent()` defaults `stripLinks` to true when omitted (matches CLI).
+- **Impact**: `package.json`, `src/index.ts`, `src/extractor.ts`, `src/generator.ts`, `src/ai-layout.ts`, `src/content-filter.ts` (new), `README.md`, `USAGE.md`, `KNOWLEDGE.md`, `docs/decisions/DECISIONS.md`
 
 ### [2026-04-11] - Bundled chrome-headless-shell fallback (zip beside executable)
 - **Author**: AI-assisted
@@ -254,6 +266,7 @@ User Input (URL)
 
 ### Known Issues
 
+- Rule-based filter patterns are English-centric; false positives/negatives possible for other languages
 - Some sites with aggressive anti-bot measures may still block scraping
 - Very large articles may cause memory issues
 - No retry mechanism for failed individual articles
@@ -267,5 +280,5 @@ User Input (URL)
 
 ---
 
-*Last Updated: 2026-04-11*
+*Last Updated: 2026-04-11 (content filtering + strip-links default)*
 *Next Review: Before next commit*

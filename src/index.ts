@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
+import chalk from 'chalk';
 import ora from 'ora';
 import { getArticleLinks } from './crawler.js';
 import { extractContent } from './extractor.js';
@@ -8,13 +9,14 @@ import { buildPDF, buildEPUB } from './generator.js';
 import { getPuppeteerLaunchOptions } from './browser-utils.js';
 import * as path from 'path';
 import { AIProvider, getAILayout, getDefaultModel } from './ai-layout.js';
+import { filterContent, smartFilterContent, type FilterResult } from './content-filter.js';
 
 const program = new Command();
 
 program
   .name('ebook-scape')
   .description('Convert blog posts to PDF or EPUB eBooks')
-  .version('1.0.0')
+  .version('1.1.0')
   .requiredOption('-u, --url <url>', 'Target blog URL to scrape')
   .requiredOption('-o, --out <path>', 'Output eBook file path')
   .option('-f, --format <type>', 'Output format: pdf or epub', 'pdf')
@@ -23,7 +25,8 @@ program
   .option('--ai-provider <provider>', 'AI provider: gemini, openai, or anthropic', 'gemini')
   .option('--ai-model <model>', 'AI model name (provider-specific)')
   .option('--ai-api-key <key>', 'API key for AI provider')
-  .option('--strip-links', 'Remove hyperlinks from article content, keeping only text')
+  .option('--no-strip-links', 'Keep hyperlinks in article content (default: strip non-anchor links)')
+  .option('--no-filter', 'Disable content filtering; include all successfully extracted pages')
   .option('--no-cache', 'Skip AI response cache')
   .parse(process.argv);
 
@@ -37,11 +40,27 @@ const options = program.opts<{
   aiModel?: string;
   aiApiKey?: string;
   stripLinks: boolean;
+  filter: boolean;
   cache: boolean;
 }>();
 
 function isValidProvider(value: string): value is AIProvider {
   return value === 'gemini' || value === 'openai' || value === 'anthropic';
+}
+
+/**
+ * Print warnings for pages omitted by content filtering.
+ * @param result - Filter outcome with omissions
+ */
+function printOmittedPages(result: FilterResult): void {
+  if (result.omitted.length === 0) {
+    return;
+  }
+  console.warn(chalk.yellow(`\n⚠️  Omitted ${result.omitted.length} non-contributing page(s):`));
+  for (const o of result.omitted) {
+    console.warn(`   - "${o.title}" (${o.url}) - ${o.reason}`);
+  }
+  console.warn(chalk.dim('   Use --no-filter to include all pages.\n'));
 }
 
 /**
@@ -103,7 +122,21 @@ async function main() {
     const formatDisplay = format.toUpperCase();
 
     console.log(`\n📚 ebook-scape - Blog to ${formatDisplay} Converter`);
-    console.log(`${'─'.repeat(50)}\n`);
+    console.log(`${'─'.repeat(50)}`);
+    console.log(
+      chalk.dim(
+        'Tip: hyperlinks are stripped by default; use --no-strip-links to keep them. ' +
+          'Content filtering is on by default; use --no-filter to disable.'
+      )
+    );
+    console.log('');
+
+    if (process.argv.some((a) => a === '--strip-links' || a.startsWith('--strip-links='))) {
+      console.warn(
+        chalk.yellow('⚠️  DEPRECATION: ') +
+          ' --strip-links is no longer needed (link stripping is now the default). Use --no-strip-links to preserve links.'
+      );
+    }
 
     const browserSpinner = ora('Preparing browser…').start();
     try {
@@ -134,17 +167,56 @@ async function main() {
 
     // Step 2: Extract content
     const extractorSpinner = ora(`Extracting content from ${urlsToProcess.length} article(s)...`).start();
-    const articles = await extractContent(urlsToProcess, 5, {
+    let articles = await extractContent(urlsToProcess, 5, {
       stripLinks: options.stripLinks
     });
-    
+
     if (articles.length === 0) {
       extractorSpinner.fail('No content could be extracted');
       console.log('\nPlease check the URLs and try again.');
       process.exit(1);
     }
-    
+
     extractorSpinner.succeed(`Extracted ${articles.length} article(s) successfully`);
+
+    if (options.filter) {
+      const apiKeyForFilter =
+        options.aiApiKey || process.env[`EBOOK_SCAPE_${providerRaw.toUpperCase()}_API_KEY`];
+      const filterSpinner = ora('Filtering non-contributing pages...').start();
+      try {
+        let filterResult: FilterResult;
+        if (apiKeyForFilter) {
+          const modelForFilter = options.aiModel || getDefaultModel(providerRaw);
+          filterResult = await smartFilterContent(articles, {
+            provider: providerRaw,
+            model: modelForFilter,
+            apiKey: apiKeyForFilter
+          });
+          filterSpinner.succeed(
+            `Content filter done (${filterResult.omitted.length} omitted via smart filter)`
+          );
+        } else {
+          filterResult = filterContent(articles);
+          filterSpinner.succeed(
+            `Content filter done (${filterResult.omitted.length} omitted via rules)`
+          );
+        }
+        articles = filterResult.articles;
+        printOmittedPages(filterResult);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        filterSpinner.warn(`Content filter failed (${msg}); applying rule-based filter only.`);
+        const filterResult = filterContent(articles);
+        articles = filterResult.articles;
+        printOmittedPages(filterResult);
+      }
+
+      if (articles.length === 0) {
+        console.error('\n❌ All pages were filtered out as non-contributing.');
+        console.error('   Use --no-filter to include all pages, or check your URLs.');
+        process.exit(1);
+      }
+    }
 
     // Step 3: Generate eBook
     const generatorSpinner = ora(`Generating ${formatDisplay}...`).start();

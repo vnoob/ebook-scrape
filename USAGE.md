@@ -90,7 +90,8 @@ ebook-scape --url https://blog.example.com --out blog-book.pdf --max 999
 | `--ai-provider <provider>` | - | ❌ No | `gemini` | AI provider: gemini, openai, or anthropic |
 | `--ai-model <model>` | - | ❌ No | provider default | AI model name (provider-specific) |
 | `--ai-api-key <key>` | - | ❌ No | environment/default | API key for selected AI provider |
-| `--strip-links` | - | ❌ No | `false` | Strip non-anchor links and keep only visible text |
+| `--no-strip-links` | - | ❌ No | strip links | Keep hyperlinks in article content |
+| `--no-filter` | - | ❌ No | filtering on | Disable omission of non-contributing pages |
 | `--no-cache` | - | ❌ No | cache enabled | Disable AI response cache |
 | `--help` | `-h` | ❌ No | - | Show help |
 | `--version` | `-V` | ❌ No | - | Show version |
@@ -127,10 +128,16 @@ ebook-scape-win.exe -u https://blog.com -o book.pdf -f pdf -m 15
 ebook-scape-win.exe --url https://blog.example.com --out ai-layout.pdf --layout-mode ai --ai-provider gemini
 ```
 
-### Example 6: Strip External URLs
+### Example 6: Keep hyperlinks in the book
 
 ```bash
-ebook-scape-win.exe --url https://blog.example.com --out clean-book.pdf --strip-links
+ebook-scape-win.exe --url https://blog.example.com --out book-with-links.pdf --no-strip-links
+```
+
+### Example 7: Include all extracted pages (no content filter)
+
+```bash
+ebook-scape-win.exe --url https://blog.example.com --out everything.pdf --no-filter
 ```
 
 ## 📂 Output Files
@@ -269,7 +276,8 @@ Options:
       --ai-provider <provider>  AI provider: gemini, openai, or anthropic (default: "gemini")
       --ai-model <model>  AI model name (provider-specific)
       --ai-api-key <key>  API key for AI provider
-      --strip-links       Remove hyperlinks from article content, keeping only text
+      --no-strip-links    Keep hyperlinks in article content (default: strip non-anchor links)
+      --no-filter         Disable content filtering; include all extracted pages
       --no-cache          Skip AI response cache
   -h, --help           display help for command
 ```

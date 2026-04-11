@@ -17,6 +17,8 @@ export interface ExtractedContent {
 }
 
 export interface ArticleContent {
+  /** Source URL for this article (used for filtering and logs). */
+  url: string;
   title: string;
   contentHTML: string;
 }
@@ -313,6 +315,7 @@ async function extractSingleUrl(
     const contentWithAbsoluteUrls = convertRelativeUrlsToAbsolute(article.content, url);
 
     return {
+      url,
       title: article.title,
       contentHTML: contentWithAbsoluteUrls
     };
@@ -332,7 +335,7 @@ async function extractSingleUrl(
  * Extract content from multiple URLs using Puppeteer and Readability
  * @param urls - Array of URLs to extract content from
  * @param concurrencyLimit - Maximum number of concurrent pages (default: 5)
- * @param options - Optional extraction behavior (e.g. strip non-anchor links before parsing)
+ * @param options - Optional extraction behavior; omit `stripLinks` or set `true` to strip non-anchor links (default); `false` keeps links
  * @returns Promise containing array of extracted article content
  */
 export async function extractContent(
@@ -343,6 +346,11 @@ export async function extractContent(
   let browser: Browser | null = null;
   const safeConcurrency = Math.max(1, Math.floor(concurrencyLimit) || 1);
   const limit = pLimit(safeConcurrency);
+  // Default matches CLI: strip non-anchor links unless options.stripLinks === false
+  const resolvedOptions: ExtractionOptions = {
+    ...options,
+    stripLinks: options.stripLinks !== false
+  };
 
   try {
     // @ts-ignore - puppeteer-extra is compatible with puppeteer API
@@ -350,7 +358,7 @@ export async function extractContent(
 
     const extractionPromises = urls.map((url) =>
       limit(async () => {
-        return extractSingleUrl(browser!, url, options);
+        return extractSingleUrl(browser!, url, resolvedOptions);
       })
     );
 

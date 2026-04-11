@@ -20,6 +20,8 @@ type EPubOptions = {
 type EPubGenerator = (options: EPubOptions, content: EPubContent[]) => Promise<Buffer>;
 
 export interface Article {
+  /** Optional source URL (from extraction; ignored by PDF/EPUB body). */
+  url?: string;
   title: string;
   contentHTML: string;
 }
