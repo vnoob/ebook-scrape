@@ -1,19 +1,22 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
+import chalk from 'chalk';
 import ora from 'ora';
 import { getArticleLinks } from './crawler.js';
 import { extractContent } from './extractor.js';
 import { buildPDF, buildEPUB } from './generator.js';
+import { getPuppeteerLaunchOptions } from './browser-utils.js';
 import * as path from 'path';
 import { AIProvider, getAILayout, getDefaultModel } from './ai-layout.js';
+import { filterContent, smartFilterContent, type FilterResult } from './content-filter.js';
 
 const program = new Command();
 
 program
   .name('ebook-scape')
   .description('Convert blog posts to PDF or EPUB eBooks')
-  .version('1.0.0')
+  .version('1.1.0')
   .requiredOption('-u, --url <url>', 'Target blog URL to scrape')
   .requiredOption('-o, --out <path>', 'Output eBook file path')
   .option('-f, --format <type>', 'Output format: pdf or epub', 'pdf')
@@ -22,6 +25,17 @@ program
   .option('--ai-provider <provider>', 'AI provider: gemini, openai, or anthropic', 'gemini')
   .option('--ai-model <model>', 'AI model name (provider-specific)')
   .option('--ai-api-key <key>', 'API key for AI provider')
+  .option('--no-strip-links', 'Keep hyperlinks in article content (default: strip non-anchor links)')
+  .option('--no-filter', 'Disable content filtering; include all successfully extracted pages')
+  .option(
+    '--lazy-load-timeout <ms>',
+    'Max time (ms) for lazy-loaded content expansion (strip, scroll, load-more)',
+    '20000'
+  )
+  .option(
+    '--no-lazy-load',
+    'Skip lazy content expansion (legacy scroll + short delay only; faster, may miss lazy content)'
+  )
   .option('--no-cache', 'Skip AI response cache')
   .parse(process.argv);
 
@@ -34,11 +48,30 @@ const options = program.opts<{
   aiProvider: string;
   aiModel?: string;
   aiApiKey?: string;
+  stripLinks: boolean;
+  filter: boolean;
+  lazyLoad: boolean;
+  lazyLoadTimeout: string;
   cache: boolean;
 }>();
 
 function isValidProvider(value: string): value is AIProvider {
   return value === 'gemini' || value === 'openai' || value === 'anthropic';
+}
+
+/**
+ * Print warnings for pages omitted by content filtering.
+ * @param result - Filter outcome with omissions
+ */
+function printOmittedPages(result: FilterResult): void {
+  if (result.omitted.length === 0) {
+    return;
+  }
+  console.warn(chalk.yellow(`\n⚠️  Omitted ${result.omitted.length} non-contributing page(s):`));
+  for (const o of result.omitted) {
+    console.warn(`   - "${o.title}" (${o.url}) - ${o.reason}`);
+  }
+  console.warn(chalk.dim('   Use --no-filter to include all pages.\n'));
 }
 
 /**
@@ -83,6 +116,12 @@ async function main() {
       process.exit(1);
     }
 
+    const lazyLoadTimeout = parseInt(options.lazyLoadTimeout, 10);
+    if (isNaN(lazyLoadTimeout) || lazyLoadTimeout < 0) {
+      console.error('Error: --lazy-load-timeout must be a non-negative number');
+      process.exit(1);
+    }
+
     const layoutMode = options.layoutMode.toLowerCase();
     if (layoutMode !== 'static' && layoutMode !== 'ai') {
       console.error('Error: --layout-mode must be either "static" or "ai"');
@@ -100,7 +139,33 @@ async function main() {
     const formatDisplay = format.toUpperCase();
 
     console.log(`\n📚 ebook-scape - Blog to ${formatDisplay} Converter`);
-    console.log(`${'─'.repeat(50)}\n`);
+    console.log(`${'─'.repeat(50)}`);
+    console.log(
+      chalk.dim(
+        'Tip: hyperlinks are stripped by default; use --no-strip-links to keep them. ' +
+          'Content filtering is on by default; use --no-filter to disable. ' +
+          'Lazy-load expansion is on by default; use --no-lazy-load on slow or metered links.'
+      )
+    );
+    console.log('');
+
+    if (process.argv.some((a) => a === '--strip-links' || a.startsWith('--strip-links='))) {
+      console.warn(
+        chalk.yellow('⚠️  DEPRECATION: ') +
+          ' --strip-links is no longer needed (link stripping is now the default). Use --no-strip-links to preserve links.'
+      );
+    }
+
+    const browserSpinner = ora('Preparing browser…').start();
+    try {
+      await getPuppeteerLaunchOptions((msg) => {
+        browserSpinner.text = msg;
+      });
+      browserSpinner.succeed('Browser ready');
+    } catch (err) {
+      browserSpinner.fail('Browser setup failed');
+      throw err;
+    }
 
     // Step 1: Discover articles
     const discoverySpinner = ora('Discovering article links...').start();
@@ -120,15 +185,58 @@ async function main() {
 
     // Step 2: Extract content
     const extractorSpinner = ora(`Extracting content from ${urlsToProcess.length} article(s)...`).start();
-    const articles = await extractContent(urlsToProcess);
-    
+    let articles = await extractContent(urlsToProcess, 5, {
+      stripLinks: options.stripLinks,
+      lazyLoad: options.lazyLoad,
+      lazyLoadTimeout
+    });
+
     if (articles.length === 0) {
       extractorSpinner.fail('No content could be extracted');
       console.log('\nPlease check the URLs and try again.');
       process.exit(1);
     }
-    
+
     extractorSpinner.succeed(`Extracted ${articles.length} article(s) successfully`);
+
+    if (options.filter) {
+      const apiKeyForFilter =
+        options.aiApiKey || process.env[`EBOOK_SCAPE_${providerRaw.toUpperCase()}_API_KEY`];
+      const filterSpinner = ora('Filtering non-contributing pages...').start();
+      try {
+        let filterResult: FilterResult;
+        if (apiKeyForFilter) {
+          const modelForFilter = options.aiModel || getDefaultModel(providerRaw);
+          filterResult = await smartFilterContent(articles, {
+            provider: providerRaw,
+            model: modelForFilter,
+            apiKey: apiKeyForFilter
+          });
+          filterSpinner.succeed(
+            `Content filter done (${filterResult.omitted.length} omitted via smart filter)`
+          );
+        } else {
+          filterResult = filterContent(articles);
+          filterSpinner.succeed(
+            `Content filter done (${filterResult.omitted.length} omitted via rules)`
+          );
+        }
+        articles = filterResult.articles;
+        printOmittedPages(filterResult);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        filterSpinner.warn(`Content filter failed (${msg}); applying rule-based filter only.`);
+        const filterResult = filterContent(articles);
+        articles = filterResult.articles;
+        printOmittedPages(filterResult);
+      }
+
+      if (articles.length === 0) {
+        console.error('\n❌ All pages were filtered out as non-contributing.');
+        console.error('   Use --no-filter to include all pages, or check your URLs.');
+        process.exit(1);
+      }
+    }
 
     // Step 3: Generate eBook
     const generatorSpinner = ora(`Generating ${formatDisplay}...`).start();

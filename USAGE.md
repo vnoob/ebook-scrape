@@ -6,18 +6,18 @@ Quick guide for using the ebook-scape tool to convert blog posts into eBooks.
 
 ### Prerequisites
 
-You need one of the following browsers installed:
-- Google Chrome
-- Microsoft Edge
-- Chromium
-- Brave Browser
+Either:
+
+- **A system browser**: Google Chrome, Microsoft Edge, Chromium, or Brave, **or**
+- **Bundled Chromium** (full release): place `chromium-<platform>-<arch>.zip` (and its `.sha256` / `.buildid` sidecars from the same release) **next to the executable**. On first run, ebook-scape verifies the checksum and extracts into a `chromium/` folder beside the binary.
 
 ### Download
 
-Download the appropriate executable for your system:
-- **Windows**: `ebook-scape-win.exe`
-- **Linux**: `ebook-scape-linux`
-- **macOS**: `ebook-scape-macos`
+Download the appropriate executable **and matching Chromium zip** for your system (from the same release):
+
+- **Windows x64**: Windows `.exe` (e.g. `ebook-scape-win-x64.exe` or `ebook-scape-win.exe`) + `chromium-win32-x64.zip` (+ `.zip.sha256`, `.buildid`)
+- **Linux x64**: Linux binary (e.g. `ebook-scape-linux-x64`) + `chromium-linux-x64.zip` (+ sidecars)
+- **macOS x64**: macOS binary (e.g. `ebook-scape-macos-x64`) + `chromium-darwin-x64.zip` (+ sidecars)
 
 ## 📖 Basic Usage
 
@@ -90,6 +90,10 @@ ebook-scape --url https://blog.example.com --out blog-book.pdf --max 999
 | `--ai-provider <provider>` | - | ❌ No | `gemini` | AI provider: gemini, openai, or anthropic |
 | `--ai-model <model>` | - | ❌ No | provider default | AI model name (provider-specific) |
 | `--ai-api-key <key>` | - | ❌ No | environment/default | API key for selected AI provider |
+| `--no-strip-links` | - | ❌ No | strip links | Keep hyperlinks in article content |
+| `--no-filter` | - | ❌ No | filtering on | Disable omission of non-contributing pages |
+| `--lazy-load-timeout <ms>` | - | ❌ No | `20000` | Max ms for lazy content expansion (scroll, images, load-more) |
+| `--no-lazy-load` | - | ❌ No | lazy on | Skip lazy expansion (faster; may miss lazy-loaded content) |
 | `--no-cache` | - | ❌ No | cache enabled | Disable AI response cache |
 | `--help` | `-h` | ❌ No | - | Show help |
 | `--version` | `-V` | ❌ No | - | Show version |
@@ -124,6 +128,18 @@ ebook-scape-win.exe -u https://blog.com -o book.pdf -f pdf -m 15
 
 ```bash
 ebook-scape-win.exe --url https://blog.example.com --out ai-layout.pdf --layout-mode ai --ai-provider gemini
+```
+
+### Example 6: Keep hyperlinks in the book
+
+```bash
+ebook-scape-win.exe --url https://blog.example.com --out book-with-links.pdf --no-strip-links
+```
+
+### Example 7: Include all extracted pages (no content filter)
+
+```bash
+ebook-scape-win.exe --url https://blog.example.com --out everything.pdf --no-filter
 ```
 
 ## 📂 Output Files
@@ -193,11 +209,10 @@ It filters out:
 
 ### "Chrome not found" or "Browser error"
 
-**Solution**: Install one of these browsers:
-- [Google Chrome](https://www.google.com/chrome/)
-- [Microsoft Edge](https://www.microsoft.com/edge) (pre-installed on Windows 10/11)
-- [Chromium](https://www.chromium.org/getting-involved/download-chromium/)
-- [Brave Browser](https://brave.com/)
+**Solution**:
+
+1. Install a system browser: [Chrome](https://www.google.com/chrome/), [Edge](https://www.microsoft.com/edge), [Chromium](https://www.chromium.org/getting-involved/download-chromium/), or [Brave](https://brave.com/), **or**
+2. Use the **full release package**: keep `chromium-<platform>-<arch>.zip` next to the executable (first launch extracts it; you may see a short “Preparing browser…” step).
 
 ### "Permission denied" (Linux/macOS)
 
@@ -263,6 +278,8 @@ Options:
       --ai-provider <provider>  AI provider: gemini, openai, or anthropic (default: "gemini")
       --ai-model <model>  AI model name (provider-specific)
       --ai-api-key <key>  API key for AI provider
+      --no-strip-links    Keep hyperlinks in article content (default: strip non-anchor links)
+      --no-filter         Disable content filtering; include all extracted pages
       --no-cache          Skip AI response cache
   -h, --help           display help for command
 ```

@@ -73,6 +73,23 @@ jobs:
           name: dist
           path: dist/
       
+      - name: Cache Chromium bundles (chrome-headless-shell)
+        id: chromium-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/chromium-*.zip
+            build/chromium-*.zip.sha256
+            build/chromium-*.buildid
+            build/chromium-bundle-metadata.json
+          key: chromium-${{ matrix.target }}-${{ hashFiles('scripts/download-chromium.mjs', 'package-lock.json') }}
+          restore-keys: |
+            chromium-${{ matrix.target }}-
+
+      - name: Download Chromium bundle for current runner
+        shell: bash
+        run: CHROMIUM_DOWNLOAD_CURRENT=1 npm run download:chromium
+      
       - name: Package executable
         run: npx @yao-pkg/pkg package.json --targets node22-${{ matrix.target }}
       

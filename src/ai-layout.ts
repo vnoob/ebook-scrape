@@ -141,6 +141,15 @@ The HTML uses these exact classes and structure - you CANNOT change the HTML, on
 5. Include @media print rules
 6. Keep CSS production-safe for Chromium print rendering
 
+## Layout efficiency (IMPORTANT)
+- Use compact vertical rhythm: avoid large padding/margins on body, .toc, and .chapter (prefer modest values so pages are not half empty)
+- Headings: about 0.5em margin above and 0.3em below; body line-height about 1.4; heading line-height about 1.2
+- Only use page-break-before on .chapter (and .toc as needed); avoid extra page-break-before/after on inner elements except where necessary for headings
+- Images: max-width 100%; let them flow with text; avoid rules that force large blank areas before/after images
+- Lists and blockquotes: tight spacing; avoid orphan/widow CSS that creates large gaps in print
+- Tables: prefer avoiding page-break-inside: avoid on large containers; keep table typography compact
+- Code blocks: modest padding (e.g. 0.5em), avoid min-height that wastes space
+
 ## Output format
 Return raw CSS only.`;
 }

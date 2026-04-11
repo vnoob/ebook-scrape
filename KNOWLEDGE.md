@@ -14,10 +14,14 @@
 | **PDF Generation** | Creates professional PDFs with clickable Table of Contents, page numbers, and proper formatting |
 | **EPUB Generation** | Generates EPUB files compatible with e-readers (Kindle, iPad, Kobo, etc.) |
 | **Performance Optimization** | Request interception blocks unnecessary resources (images, fonts, tracking) for 80% faster scraping |
-| **Browser Detection** | Automatically finds system Chrome/Edge/Chromium for standalone executables |
+| **Browser Detection** | Prefers system Chrome/Edge/Chromium/Brave; falls back to **chrome-headless-shell** from `chromium-<platform>-<arch>.zip` beside the executable (SHA256 verified, extracted once to `./chromium/`) |
 | **Cross-Platform Executables** | Standalone binaries for Linux, Windows, and macOS via pkg |
 | **Anti-Bot Bypass** | Puppeteer stealth plugin to avoid detection on protected sites |
-| **AI Layout Mode (PDF v1)** | Optional AI-generated CSS stylesheet for PDF output using metadata-only prompts, with cache + validation + static fallback |
+| **AI Layout Mode (PDF v1)** | Optional AI-generated CSS stylesheet for PDF output using metadata-only prompts, with cache + validation + static fallback; prompt includes layout-efficiency guidance to reduce blank space in PDFs |
+| **Link stripping (default on)** | Non-anchor hyperlinks are stripped by default (`--no-strip-links` to preserve links); programmatic `extractContent` matches unless `stripLinks: false` |
+| **Content filtering (default on)** | After extraction, rule-based filter omits thin/error/login-heavy/duplicate/navigation-heavy pages; with `--ai-api-key` or `EBOOK_SCAPE_*_API_KEY`, uses batched AI smart filter (10 articles/call) with rule fallback per batch; `--no-filter` disables all filtering |
+| **Peripheral DOM stripping (pre-Readability)** | Before Readability, `extractor.ts` removes comments, discussions, related/recommended blocks, Disqus/WordPress comment areas, newsletter widgets, ads, and nav/aside/sidebars (selectors from `non-content-selectors.ts`); same pass runs again on extracted HTML for defense in depth |
+| **Lazy-load expansion (default on)** | After `page.goto`, `lazy-loader.ts` strips non-content in the live DOM, reveals lazy images (`data-src` → `src`), scrolls viewport-by-viewport with mutation-based stability waits, and may click safe “load more” controls inside `article`/`main`; `--lazy-load-timeout` (default 20s) caps work; `--no-lazy-load` uses legacy scroll + 1s delay only |
 
 ---
 
@@ -44,6 +48,7 @@
 | chalk | ^4.1.2 | Terminal colors |
 | chrome-paths | ^1.0.1 | Browser path detection |
 | p-limit | ^7.3.0 | Concurrency control |
+| extract-zip | ^2.0.1 | Extract bundled chrome-headless-shell zip at runtime |
 | fetch (Node built-in) | Node 20+ | AI provider REST calls (Gemini/OpenAI/Anthropic) without SDKs |
 
 ### Dev Dependencies
@@ -51,7 +56,9 @@
 |---------|---------|---------|
 | typescript | ^5.4.0 | TypeScript compiler |
 | @yao-pkg/pkg | ^6.14.1 | Executable packaging |
+| @puppeteer/browsers | ^2.x | Download chrome-headless-shell zips for `npm run download:chromium` |
 | ts-node | ^10.9.0 | TypeScript execution |
+| vitest | ^3.x | Unit tests (`npm test`) |
 | @types/* | various | Type definitions |
 
 ---
@@ -61,14 +68,19 @@
 ### Module Structure
 
 ```
+scripts/
+└── download-chromium.mjs  # Fetch chrome-headless-shell zips for pkg releases
 src/
-├── index.ts          # CLI entry point (Commander setup)
-├── crawler.ts        # Article discovery & URL crawling
-├── extractor.ts      # Content extraction with Readability
-├── generator.ts      # PDF & EPUB generation (+ optional AI CSS for PDF)
-├── ai-layout.ts      # AI prompt building, metadata extraction, CSS validation, caching
-├── browser-utils.ts  # Browser detection utilities
-└── chrome-paths.d.ts # Type definitions for chrome-paths
+├── index.ts                 # CLI entry point (Commander setup)
+├── crawler.ts               # Article discovery & URL crawling
+├── extractor.ts           # Content extraction with Readability (articles include source `url`)
+├── non-content-selectors.ts # Shared peripheral-DOM selector list (JSDOM + live page strip)
+├── lazy-loader.ts         # Live-page lazy expansion (strip, images, scroll, load-more)
+├── generator.ts             # PDF & EPUB generation (+ optional AI CSS for PDF)
+├── ai-layout.ts           # AI prompt building, metadata extraction, CSS validation, caching
+├── content-filter.ts      # Rule-based + AI batched smart filtering for non-contributing pages
+├── browser-utils.ts       # Browser detection + bundled headless shell extraction
+└── chrome-paths.d.ts      # Type definitions for chrome-paths
 ```
 
 ### Data Flow
@@ -83,13 +95,18 @@ User Input (URL)
       │
       ▼
 ┌──────────────┐
-│ extractor.ts │  ── extractContent() ──► Array<{title, contentHTML}>
+│ extractor.ts │  ── extractContent() ──► Array<{url, title, contentHTML}>
 └──────────────┘
       │
       ▼
 ┌──────────────┐
 │  ai-layout.ts│  ── getAILayout() ──► CSS string (optional, cached)
 └──────────────┘
+      │
+      ▼
+┌──────────────────┐
+│ content-filter.ts │  ── filterContent() / smartFilterContent() ──► kept articles + omissions (CLI)
+└──────────────────┘
       │
       ▼
 ┌──────────────┐
@@ -101,9 +118,9 @@ User Input (URL)
 
 1. **Shared Browser Instance**: Single Puppeteer browser instance shared across operations for efficiency
 2. **Request Interception**: Block unnecessary resources during discovery phase, allow during extraction
-3. **Lazy Loading Support**: Auto-scroll pages to trigger lazy-loaded content
+3. **Lazy Loading Support**: `expandLazyContent()` strips peripheral DOM in the browser first, then reveals lazy images, scrolls with stability detection, and optionally clicks safe in-article load-more controls; CLI `--no-lazy-load` restores legacy scroll-only behavior
 4. **Graceful Degradation**: Continue processing even if individual articles fail
-5. **Local Browser Preference**: Use system browser when available; rely on Puppeteer executable resolution when not detected
+5. **Local Browser Preference**: Use system browser when available; otherwise verify and extract **chrome-headless-shell** from a sidecar zip next to the executable (or `./build` when developing); never rely on Puppeteer-downloaded Chromium inside the pkg snapshot
 
 ### Output Formats
 
@@ -116,10 +133,40 @@ User Input (URL)
 
 ## 4. Changelog
 
+### [2026-04-11] - Comprehensive lazy-load expansion (live page)
+- **Author**: AI-assisted
+- **Changes**: Added `src/lazy-loader.ts` and shared `src/non-content-selectors.ts`; extraction calls `expandLazyContent()` after navigation (default 20s budget) with strip → lazy images → scroll/stability → load-more loop; `NON_CONTENT_SELECTORS` narrows social-share patterns vs legacy `[class*="share"]`; CLI `--lazy-load-timeout` and `--no-lazy-load`; `ExtractionOptions` gains `lazyLoad` / `lazyLoadTimeout` / optional `onProgress`; Vitest + `tests/lazy-loader.test.ts` for pure helpers; docs in README/USAGE.
+- **Impact**: `src/extractor.ts`, `src/index.ts`, `package.json`, `README.md`, `USAGE.md`, `KNOWLEDGE.md`, `docs/decisions/DECISIONS.md`, new `src/lazy-loader.ts`, `src/non-content-selectors.ts`, `tests/lazy-loader.test.ts`, `vitest.config.ts`
+
+### [2026-04-11] - Omit peripheral sections from exports (pre-Readability)
+- **Author**: AI-assisted
+- **Changes**: Call `removeUnwantedElements()` before `Readability.parse()` in `extractSingleUrl()` and `extract()`; expanded selector list for comments (incl. Disqus/WordPress), discussions, related/recommended content, ads, newsletters, and social/share blocks; kept post-extraction pass in `convertRelativeUrlsToAbsolute()`. Documented selector strategy in `docs/decisions/DECISIONS.md` (Peripheral Content Removal).
+- **Impact**: `src/extractor.ts`, `KNOWLEDGE.md`, `docs/decisions/DECISIONS.md` (decision entry)
+
+### [2026-04-11] - PDF layout + content filtering (v1.1.0)
+- **Author**: AI-assisted
+- **Changes**: CLI `1.1.0`: `--no-strip-links` (strip links by default); `--no-filter` to disable post-extraction filtering; `ArticleContent` includes `url`; `content-filter.ts` with heuristics + batched AI smart filter when API key present; AI layout prompt extended for compact PDF CSS; deprecation notice if legacy `--strip-links` is passed; `extractContent()` defaults `stripLinks` to true when omitted (matches CLI).
+- **Impact**: `package.json`, `src/index.ts`, `src/extractor.ts`, `src/generator.ts`, `src/ai-layout.ts`, `src/content-filter.ts` (new), `README.md`, `USAGE.md`, `KNOWLEDGE.md`, `docs/decisions/DECISIONS.md`
+
+### [2026-04-11] - Bundled chrome-headless-shell fallback (zip beside executable)
+- **Author**: AI-assisted
+- **Changes**: Added `extract-zip` runtime extraction with optional `.zip.sha256` verification and `.buildid` / `.chromium-version` re-extract rules; `npm run download:chromium` (via `@puppeteer/browsers`, `unpack: false`) produces `build/chromium-<platform>-<arch>.zip` + sidecars; `build:exe` runs download before `pkg`; CLI primes browser with ora progress during first-time extract; GitHub Actions cache + `CHROMIUM_DOWNLOAD_CURRENT=1` for per-runner downloads; documented in README, USAGE, KNOWLEDGE.
+- **Impact**: `package.json`, `package-lock.json`, `scripts/download-chromium.mjs`, `src/browser-utils.ts`, `src/index.ts`, `src/crawler.ts`, `src/extractor.ts`, `src/generator.ts`, `.github/workflows/npm-publish-github-packages.yml`, `README.md`, `USAGE.md`, `KNOWLEDGE.md`
+
+### [2026-04-10] - Mandatory browser detection with PATH lookup
+- **Author**: AI-assisted
+- **Changes**: Enhanced browser detection to use `where`/`which` commands as fallback when filesystem paths fail; browser detection is now mandatory (throws `BrowserNotFoundError` instead of falling back to Puppeteer's bundled Chromium); returns browser name alongside path for clearer user feedback. This fixes `pkg` packaging failures caused by Puppeteer trying to spawn bundled Chromium which triggers antivirus blocks.
+- **Impact**: `src/browser-utils.ts`
+
 ### [2026-04-09] - Bundle stealth evasion modules for pkg executable
 - **Author**: AI-assisted
 - **Changes**: Added explicit `pkg.scripts` entries for `puppeteer-extra-plugin-stealth` evasion sub-modules and shared `_utils` so the dynamically-required evasions are included in the packaged executable snapshot.
 - **Impact**: `package.json`
+
+### [2026-04-10] - Add optional stripping of external URLs
+- **Author**: AI-assisted
+- **Changes**: Added `--strip-links` CLI flag and extraction pipeline option to replace non-anchor links with plain text before URL normalization; documented usage in README and USAGE.
+- **Impact**: `src/index.ts`, `src/extractor.ts`, `README.md`, `USAGE.md`, `KNOWLEDGE.md`
 
 ### [2026-04-09] - Stabilize pkg packaging inputs and Puppeteer runtime
 - **Author**: AI-assisted
@@ -218,7 +265,7 @@ User Input (URL)
    - Incremental updates for large blogs
 
 4. **Testing Infrastructure**
-   - Add Jest/Vitest for unit tests
+   - Vitest in place for pure helpers; extend with Puppeteer mocks or integration tests
    - Mock Puppeteer for faster CI
    - Add integration test suite
 
@@ -234,6 +281,7 @@ User Input (URL)
 
 ### Known Issues
 
+- Rule-based filter patterns are English-centric; false positives/negatives possible for other languages
 - Some sites with aggressive anti-bot measures may still block scraping
 - Very large articles may cause memory issues
 - No retry mechanism for failed individual articles
@@ -247,5 +295,5 @@ User Input (URL)
 
 ---
 
-*Last Updated: 2026-04-09*
+*Last Updated: 2026-04-11 (comprehensive lazy-load expansion + shared non-content selectors)*
 *Next Review: Before next commit*

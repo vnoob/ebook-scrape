@@ -20,6 +20,8 @@ type EPubOptions = {
 type EPubGenerator = (options: EPubOptions, content: EPubContent[]) => Promise<Buffer>;
 
 export interface Article {
+  /** Optional source URL (from extraction; ignored by PDF/EPUB body). */
+  url?: string;
   title: string;
   contentHTML: string;
 }
@@ -330,7 +332,7 @@ export async function buildPDF(
 
     const masterHTML = buildMasterHTML(articles, aiCSS);
 
-    browser = await puppeteer.launch(getPuppeteerLaunchOptions());
+    browser = await puppeteer.launch(await getPuppeteerLaunchOptions());
 
     const page = await browser.newPage();
 
